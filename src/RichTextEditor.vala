@@ -10,6 +10,8 @@ namespace ButMail {
         private Gtk.Overlay editor_area;
         private Cancellable cancellable = new Cancellable ();
         private ulong theme_handler;
+        private Gtk.EmojiChooser? emoji_chooser;
+        private bool opening_emoji;
         private const string WORLD = "butmail-editor";
 
         public RichTextEditor (string initial_text, bool is_html = false) {
@@ -32,6 +34,16 @@ namespace ButMail {
             view.editable = true;
             view.vexpand = true;
             view.get_settings ().enable_javascript_markup = false;
+            var emoji_keys = new Gtk.EventControllerKey () { propagation_phase = Gtk.PropagationPhase.CAPTURE };
+            emoji_keys.key_pressed.connect ((key, code, modifiers) => {
+                var relevant = modifiers & Gtk.accelerator_get_default_mod_mask ();
+                if (ready && relevant == Gdk.ModifierType.CONTROL_MASK && (key == Gdk.Key.period || key == Gdk.Key.semicolon)) {
+                    show_emoji.begin ();
+                    return true;
+                }
+                return false;
+            });
+            ((Gtk.Widget) view).add_controller (emoji_keys);
             view.decide_policy.connect ((decision, type) => {
                 if (type == WebKit.PolicyDecisionType.NAVIGATION_ACTION) {
                     var navigation = (WebKit.NavigationPolicyDecision) decision;
@@ -110,6 +122,38 @@ namespace ButMail {
             } else {
                 view.execute_editing_command_with_argument (command, argument);
             }
+        }
+
+        /* ----- Keyboard Emoji Insertion ----- */
+        private async void show_emoji () {
+            if (opening_emoji || (emoji_chooser != null && emoji_chooser.visible)) { return; }
+            opening_emoji = true;
+            var location = Gdk.Rectangle () { x = 8, y = 8, width = 1, height = 20 };
+            try {
+                var rect = yield view.evaluate_javascript (
+                    "(() => { const s = window.getSelection(); if (!s.rangeCount) return [8, 8, 20]; " +
+                    "const r = s.getRangeAt(0).getBoundingClientRect(); return [r.x, r.y, r.height]; })()",
+                    -1, WORLD, null, cancellable);
+                location.x = int.max (0, int.min ((int) rect.object_get_property_at_index (0).to_double (), view.get_width () - 1));
+                location.y = int.max (0, int.min ((int) rect.object_get_property_at_index (1).to_double (), view.get_height () - 1));
+                location.height = int.max (1, (int) rect.object_get_property_at_index (2).to_double ());
+            } catch (Error error) {
+                if (error is IOError.CANCELLED) { opening_emoji = false; return; }
+            }
+            if (emoji_chooser == null) {
+                emoji_chooser = new Gtk.EmojiChooser ();
+                emoji_chooser.set_parent (view);
+                emoji_chooser.emoji_picked.connect ((emoji) => {
+                    emoji_chooser.popdown ();
+                    execute ("InsertText", emoji);
+                });
+                emoji_chooser.closed.connect (() => {
+                    if (!cancellable.is_cancelled () && view.get_mapped ()) { view.grab_focus (); }
+                });
+            }
+            emoji_chooser.pointing_to = location;
+            emoji_chooser.popup ();
+            opening_emoji = false;
         }
 
         private async void choose_font () {
@@ -236,6 +280,7 @@ namespace ButMail {
 
         protected override void dispose () {
             cancellable.cancel ();
+            if (emoji_chooser != null && emoji_chooser.get_parent () != null) { emoji_chooser.unparent (); }
             if (theme_handler != 0) {
                 Adw.StyleManager.get_default ().disconnect (theme_handler);
                 theme_handler = 0;

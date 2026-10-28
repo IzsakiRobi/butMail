@@ -62,9 +62,10 @@ namespace ButMail {
             }
             sender = new Gtk.DropDown (addresses, null) { selected = account_position, hexpand = true };
             add_field (fields, labels, "From:", sender);
-            recipient = new Gtk.Entry () { hexpand = true, input_purpose = Gtk.InputPurpose.EMAIL };
-            cc = new Gtk.Entry () { hexpand = true, input_purpose = Gtk.InputPurpose.EMAIL };
-            bcc = new Gtk.Entry () { hexpand = true, input_purpose = Gtk.InputPurpose.EMAIL };
+            var history = ((Application) app).recipients;
+            recipient = new RecipientEntry (history);
+            cc = new RecipientEntry (history);
+            bcc = new RecipientEntry (history);
             subject = new Gtk.Entry () { hexpand = true };
             var to_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
             to_box.add_css_class ("linked");
@@ -179,6 +180,7 @@ namespace ButMail {
             });
             ((Gtk.Widget) this).add_controller (keys);
             recipient.grab_focus ();
+            backend.prepare_recipients.begin ();
         }
 
         /* ----- Background Submission ----- */

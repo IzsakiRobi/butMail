@@ -27,6 +27,8 @@ executable(
     'SplitResizeHandle.vala',
     'ComposeSnapshot.vala',
     'ComposerWindow.vala',
+    'RecipientStore.vala',
+    'RecipientEntry.vala',
     'RichTextEditor.vala',
     'PreferencesDialog.vala',
     'SignatureDialog.vala',

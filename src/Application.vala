@@ -10,6 +10,7 @@ namespace ButMail {
         public Settings settings { get; private set; }
         public OnlineAccounts online_accounts { get; private set; }
         public AvatarStore avatars { get; private set; }
+        public RecipientStore recipients { get; private set; }
         public bool quitting { get; private set; }
         private bool background_launch;
 
@@ -18,7 +19,9 @@ namespace ButMail {
             add_main_option ("background", 0, OptionFlags.NONE, OptionArg.NONE, "Monitor mail without opening a window", null);
             settings = new Settings (ID);
             online_accounts = new OnlineAccounts ();
+            recipients = new RecipientStore (Path.build_filename (Environment.get_user_data_dir (), ID, "recipient-history.gv"));
             avatars = new AvatarStore (settings);
+            avatars.populate_recipients.begin (recipients);
         }
 
         protected override void startup () {
@@ -100,6 +103,11 @@ namespace ButMail {
 
         private void update_color_scheme () {
             preview_color_scheme (settings.get_uint ("color-scheme"));
+        }
+
+        protected override void shutdown () {
+            recipients.flush ();
+            base.shutdown ();
         }
 
         /* ----- Background Startup ----- */

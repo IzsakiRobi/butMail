@@ -13,6 +13,7 @@ namespace ButMail {
         public bool is_connecting { get; private set; default = true; }
         private bool discovering = true;
         private bool refreshing_inboxes;
+        private bool recipient_history_started;
         private NetworkMonitor monitor = NetworkMonitor.get_default ();
         private ulong network_handler;
         public uint pending_operations { get; private set; }
@@ -309,6 +310,15 @@ namespace ButMail {
             for (uint i = 0; i < batch.conversations.length; i++) {
                 var incoming = batch.conversations[i];
                 var members = batch.members.lookup (incoming);
+                if (model.role != FolderRole.JUNK && !model.is_in_trash () && model.role != FolderRole.DRAFTS) {
+                    var recipients = ((Application) GLib.Application.get_default ()).recipients;
+                    foreach (var info in members.data) {
+                        recipients.remember_header (info.from, 1, info.date_sent);
+                        uint rank = model.role == FolderRole.SENT ? 10u : 1u;
+                        recipients.remember_header (info.to, rank, info.date_sent);
+                        recipients.remember_header (info.cc, rank, info.date_sent);
+                    }
+                }
                 for (int j = (int) members.length - 1; j >= 0; j--) {
                     if (hidden_messages.contains (model.id + "/" + members[(uint) j].uid)) {
                         members.remove_index ((uint) j);
@@ -338,6 +348,20 @@ namespace ButMail {
         }
 
         /* ----- Inbox Monitoring ----- */
+        public async void prepare_recipients () {
+            if (recipient_history_started) { return; }
+            recipient_history_started = true;
+            foreach (var root in accounts.get_values ()) {
+                var sent = find_role (root, FolderRole.SENT);
+                if (sent == null || sent.loading) { continue; }
+                try { yield load_folder (sent, lifetime); }
+                catch (Error error) {
+                    recipient_history_started = false;
+                    if (!(error is IOError.CANCELLED)) { debug ("Sent address history is unavailable: %s", error.message); }
+                }
+            }
+        }
+
         public async void refresh_inboxes () {
             if (discovering || refreshing_inboxes || lifetime.is_cancelled () || !monitor.get_network_available ()) { return; }
             refreshing_inboxes = true;
@@ -687,6 +711,11 @@ namespace ButMail {
             if (transport.connection_status != Camel.ServiceConnectionStatus.CONNECTED) { yield transport.connect (Priority.DEFAULT, cancellable); }
             bool saved;
             if (!yield transport.send_to (mime, from, recipients, Priority.DEFAULT, cancellable, out saved)) { throw new IOError.FAILED ("The outgoing server did not accept the message."); }
+            var history = ((Application) GLib.Application.get_default ()).recipients;
+            int64 now = get_real_time () / 1000000;
+            history.remember_header (to, 100, now);
+            history.remember_header (cc, 100, now);
+            history.remember_header (bcc, 100, now);
             if (transport_source.has_extension (E.SOURCE_EXTENSION_AUTHENTICATION)) {
                 unowned var auth = (E.SourceAuthentication) transport_source.get_extension (E.SOURCE_EXTENSION_AUTHENTICATION);
                 string host = auth.host ?? "";

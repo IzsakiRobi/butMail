@@ -93,6 +93,29 @@ namespace ButMail {
             return null;
         }
 
+        /* ----- Address Book Recipients ----- */
+        public async void populate_recipients (RecipientStore recipients) {
+            if (!books_ready) {
+                ulong handler = notify["books-ready"].connect (() => populate_recipients.callback ());
+                yield;
+                disconnect (handler);
+            }
+            var query = E.BookQuery.any_field_contains ("");
+            foreach (var book in books) {
+                var job = new Cancellable ();
+                uint timeout = Timeout.add_seconds (3, () => { job.cancel (); return Source.REMOVE; });
+                try {
+                    SList<E.Contact> contacts;
+                    yield book.get_contacts (query.to_string (), job, out contacts);
+                    foreach (var contact in contacts) {
+                        var emails = contact.get<GLib.List<string>> (E.ContactField.EMAIL);
+                        foreach (var email in emails) { recipients.remember (contact.full_name ?? "", email, 1000); }
+                    }
+                } catch (Error error) { }
+                finally { if (!job.is_cancelled ()) { Source.remove (timeout); } }
+            }
+        }
+
         /* ----- Ordered Avatar Sources ----- */
         public async Gdk.Texture? lookup (string address, int minimum_size) {
             string email = address.strip ().down ();
