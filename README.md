@@ -4,4 +4,4 @@
 
 <h1 align="center">butMail</h1>
 
-<p align="center">Nothing but Mail :)</p>
+<p align="center">Nothing but Mail 🙂️</p>
