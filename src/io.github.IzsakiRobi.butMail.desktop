@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=butMail
+Comment=Nothing but Mail :)
+Exec=io.github.IzsakiRobi.butMail
+Icon=io.github.IzsakiRobi.butMail
+Terminal=false
+Categories=Network;Email;
+Keywords=Mail;Email;IMAP;SMTP;
+StartupNotify=true

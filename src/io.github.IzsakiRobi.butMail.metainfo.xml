@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.IzsakiRobi.butMail</id>
+  <name>butMail</name>
+  <summary>Nothing but Mail :)</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="io.github.izsakirobi"><name>IzsakiRobi</name></developer>
+  <description><p>A GTK 4 and libadwaita email client using GNOME Online Accounts and Evolution Data Server.</p></description>
+  <launchable type="desktop-id">io.github.IzsakiRobi.butMail.desktop</launchable>
+  <url type="homepage">https://github.com/IzsakiRobi/butMail</url>
+  <url type="bugtracker">https://github.com/IzsakiRobi/butMail/issues</url>
+  <provides><binary>io.github.IzsakiRobi.butMail</binary></provides>
+  <releases><release version="0.5" date="2026-10-28"/></releases>
+  <content_rating type="oars-1.1"/>
+</component>

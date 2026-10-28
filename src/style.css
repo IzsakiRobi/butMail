@@ -1,0 +1,109 @@
+/* ----- Conversation List ----- */
+.butmail .conversation-footer,
+.butmail .conversation-footer > revealer > box {
+    background-color: var(--view-bg-color);
+    color: var(--view-fg-color);
+}
+.butmail .conversation-footer.empty-list,
+.butmail .conversation-footer.empty-list > revealer > box { background-color: transparent; }
+.butmail .conversation-list row { padding: 0; }
+.butmail .conversation-row { padding: 16px 14px; }
+.butmail .unread-dot {
+    min-width: 8px;
+    min-height: 8px;
+    background-color: var(--accent-color);
+    border: 2px solid var(--view-bg-color);
+    border-radius: 50%;
+}
+.butmail .conversation-star {
+    color: #f6c915;
+    -gtk-icon-shadow: -1px -1px #fff, 0 -1px #fff, 1px -1px #fff,
+        -1px 0 #fff, 1px 0 #fff, -1px 1px #fff, 0 1px #fff, 1px 1px #fff;
+}
+.butmail .conversation-count {
+    padding: 0 6px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, currentColor 12%, transparent);
+    font-size: 0.85em;
+    font-weight: 700;
+}
+.butmail .folder-count { font-size: 0.85em; font-weight: 700; }
+
+/* ----- Message Cards ----- */
+.butmail .message-header { padding: 12px 16px; border-radius: 12px; }
+.butmail .message-header,
+.butmail .message-header:hover,
+.butmail .message-header:active,
+.butmail .message-header:checked { background: none; }
+.butmail .message-card-header { border-radius: 12px; }
+.butmail .message-card:not(.collapsed) .message-card-header,
+.butmail .message-card:not(.collapsed) .message-header { border-radius: 12px 12px 0 0; }
+.butmail .message-header:focus-visible { outline: none; box-shadow: none; }
+.butmail .message-card-header.keyboard-focus {
+    outline: 2px solid color-mix(in srgb, var(--accent-color) 50%, transparent);
+    outline-offset: -2px;
+}
+.butmail .message-card-header:hover {
+    background-color: color-mix(in srgb, currentColor 4%, transparent);
+}
+.butmail .message-card-header:focus-within {
+    background-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+.butmail .message-body { padding: 20px 24px 24px; }
+.butmail .message-card {
+    background-color: var(--window-bg-color);
+    background-image: linear-gradient(var(--card-bg-color), var(--card-bg-color));
+    margin: 0 0 8px;
+}
+.butmail .message-card.collapsed { margin-bottom: -28px; }
+.butmail .message-card:last-child { margin-bottom: 0; }
+
+/* ----- Folder Drag and Drop ----- */
+.butmail .folder-insertion-marker {
+    min-width: 4px;
+    min-height: 4px;
+    border: 2px solid var(--accent-color);
+    border-radius: 50%;
+}
+.butmail .folder-insertion-line { min-height: 2px; background-color: var(--accent-color); }
+.butmail .mail-drop-target { background-color: color-mix(in srgb, var(--accent-bg-color) 15%, transparent); }
+
+/* ----- Trash Action ----- */
+.butmail .trash-action {
+    color: var(--destructive-color);
+    background-color: color-mix(in srgb, var(--destructive-bg-color) 10%, transparent);
+}
+.butmail .trash-action:hover {
+    background-color: color-mix(in srgb, var(--destructive-bg-color) 18%, transparent);
+}
+.butmail .trash-action:active {
+    background-color: color-mix(in srgb, var(--destructive-bg-color) 24%, transparent);
+}
+.butmail .trash-action:disabled { opacity: 0.4; }
+
+/* ----- Folder Drop Feedback ----- */
+.butmail .folder-row:drop(active),
+.butmail .folder-row:drop(active):focus {
+    border-color: transparent;
+    box-shadow: none;
+}
+
+/* ----- Empty States ----- */
+.butmail .status-watermark {
+    color: var(--window-fg-color);
+    opacity: 0.18;
+    font-size: 14px;
+}
+.butmail .reader-watermark { opacity: 0.24; }
+
+/* ----- Connection Indicator ----- */
+.butmail .connection-dot.disconnected { background-color: @red_3; }
+.butmail .connection-dot.connected { background-color: @green_4; }
+.butmail .connection-dot.connecting {
+    background-color: @blue_4;
+    animation: connection-pulse 1.2s ease-in-out infinite;
+}
+@keyframes connection-pulse {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}

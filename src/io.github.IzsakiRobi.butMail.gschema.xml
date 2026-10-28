@@ -1,0 +1,20 @@
+<schemalist>
+  <schema id="io.github.IzsakiRobi.butMail" path="/io/github/IzsakiRobi/butMail/">
+    <key name="window-width" type="i"><default>1440</default><range min="360" max="7680"/></key>
+    <key name="window-height" type="i"><default>900</default><range min="360" max="4320"/></key>
+    <key name="window-maximized" type="b"><default>false</default></key>
+    <key name="color-scheme" type="u"><default>0</default><range min="0" max="2"/></key>
+    <key name="show-avatars" type="b"><default>true</default></key>
+    <key name="folder-width-fraction" type="d"><default>0.18</default><range min="0.0" max="1.0"/></key>
+    <key name="conversation-width-fraction" type="d"><default>0.34</default><range min="0.0" max="1.0"/></key>
+    <key name="always-load-remote-images" type="b"><default>true</default></key>
+    <key name="load-remote-avatars" type="b"><default>true</default></key>
+    <key name="mark-read-delay" type="i"><default>5</default><range min="0" max="5"/></key>
+    <key name="undo-time" type="i"><default>5</default><range min="0" max="5"/></key>
+    <key name="undo-send" type="b"><default>true</default></key>
+    <key name="undo-delete" type="b"><default>true</default></key>
+    <key name="run-in-background" type="b"><default>true</default></key>
+    <key name="signature-html" type="s"><default>''</default></key>
+    <key name="folder-order" type="a{sas}"><default>{}</default></key>
+  </schema>
+</schemalist>

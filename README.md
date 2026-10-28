@@ -1,0 +1,3 @@
+# butMail
+
+Nothing but Mail :)

@@ -1,0 +1,11 @@
+<gresources>
+  <gresource prefix="/io/github/IzsakiRobi/butMail">
+    <file>style.css</file>
+    <file alias="icons/scalable/actions/butmail-reply-symbolic.svg">icons/butmail-reply-symbolic.svg</file>
+    <file alias="icons/scalable/actions/butmail-reply-all-symbolic.svg">icons/butmail-reply-all-symbolic.svg</file>
+    <file alias="icons/scalable/actions/butmail-forward-symbolic.svg">icons/butmail-forward-symbolic.svg</file>
+    <file>editor.html</file>
+    <file>editor.js</file>
+    <file alias="icons/scalable/apps/io.github.IzsakiRobi.butMail.svg">io.github.IzsakiRobi.butMail.svg</file>
+  </gresource>
+</gresources>
