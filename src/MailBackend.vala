@@ -6,9 +6,13 @@ namespace ButMail {
     public class MailBackend : Object {
         public signal void folders_loaded (Folder[] accounts, Folder? preferred);
         public signal void failed (string message);
+        public signal void inbox_ready (Folder model, Camel.Folder folder);
+        public signal void folder_updated (Folder model);
+        public signal void messages_staged (Folder model, string[] uids, bool hidden);
         public bool online { get; private set; }
         public bool is_connecting { get; private set; default = true; }
         private bool discovering = true;
+        private bool refreshing_inboxes;
         private NetworkMonitor monitor = NetworkMonitor.get_default ();
         private ulong network_handler;
         public uint pending_operations { get; private set; }
@@ -112,9 +116,11 @@ namespace ButMail {
                         folders_updated (root, children.data);
                         cache.save (root);
                         available |= root.children.get_n_items () > 0;
+                        var inbox = find_inbox (root);
+                        if (inbox != null && !inbox.loading) { yield load_folder (inbox, lifetime, true); }
                         var visited = new GenericArray<Folder> ();
                         foreach (var model in opened_models.get_values ()) {
-                            if (root_id (model) == root.id) { visited.add (model); }
+                            if (root_id (model) == root.id && model.role != FolderRole.INBOX) { visited.add (model); }
                         }
                         foreach (var model in visited.data) {
                             refresh_cached_folder.begin (model);
@@ -224,6 +230,7 @@ namespace ButMail {
                 var batch = yield read_summary (folder, cancellable);
                 apply_summary (model, folder, batch);
                 cache_account (model);
+                if (model.role == FolderRole.INBOX) { inbox_ready (model, folder); }
             } catch (Error error) {
                 if (!(error is IOError.CANCELLED)) { model.error_message = error.message; }
                 throw error;
@@ -327,6 +334,40 @@ namespace ButMail {
             opened_models.insert (model.id, model);
             model.unread = folder.get_folder_summary ().get_unread_count ();
             model.conversations.splice (0, model.conversations.get_n_items (), shown.data);
+            folder_updated (model);
+        }
+
+        /* ----- Inbox Monitoring ----- */
+        public async void refresh_inboxes () {
+            if (discovering || refreshing_inboxes || lifetime.is_cancelled () || !monitor.get_network_available ()) { return; }
+            refreshing_inboxes = true;
+            foreach (var root in accounts.get_values ()) {
+                var inbox = find_inbox (root);
+                if (inbox == null || inbox.loading) { continue; }
+                try {
+                    var store = stores.lookup (root.id);
+                    if (store.connection_status != Camel.ServiceConnectionStatus.CONNECTED) {
+                        yield store.connect (Priority.DEFAULT, lifetime);
+                        connection_errors.remove (root.id);
+                    }
+                    yield load_folder (inbox, lifetime, true);
+                } catch (Error error) {
+                    if (!(error is IOError.CANCELLED)) { debug ("Inbox refresh failed: %s", error.message); }
+                }
+            }
+            refreshing_inboxes = false;
+        }
+
+        public async void update_inbox_view (Folder model) {
+            var folder = opened.lookup (model.id);
+            if (folder == null || model.loading || lifetime.is_cancelled ()) { return; }
+            try {
+                var batch = yield read_summary (folder, lifetime);
+                apply_summary (model, folder, batch);
+                cache_account (model);
+            } catch (Error error) {
+                if (!(error is IOError.CANCELLED)) { debug ("Inbox view refresh failed: %s", error.message); }
+            }
         }
 
         private static string conversation_key (Conversation conversation) {
@@ -530,12 +571,16 @@ namespace ButMail {
         }
 
         public void stage_messages (ConversationDrag drag, bool hide) {
+            var uids = new GenericArray<string> ();
             foreach (var conversation in drag.conversations) {
                 for (uint i = 0; i < conversation.messages.get_n_items (); i++) {
-                    string key = drag.source.id + "/" + ((Message) conversation.messages.get_item (i)).uid;
+                    string uid = ((Message) conversation.messages.get_item (i)).uid;
+                    uids.add (uid);
+                    string key = drag.source.id + "/" + uid;
                     if (hide) { hidden_messages.insert (key, true); } else { hidden_messages.remove (key); }
                 }
             }
+            messages_staged (drag.source, uids.data, hide);
         }
 
         public async UndoOperation? move (ConversationDrag drag, Folder destination) throws Error {

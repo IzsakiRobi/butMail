@@ -47,6 +47,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.IzsakiRobi.
 %doc README.md butMail-logo.png
 %{_bindir}/io.github.IzsakiRobi.butMail
 %{_datadir}/applications/io.github.IzsakiRobi.butMail.desktop
+%{_datadir}/dbus-1/services/io.github.IzsakiRobi.butMail.service
 %{_datadir}/metainfo/io.github.IzsakiRobi.butMail.metainfo.xml
 %{_datadir}/glib-2.0/schemas/io.github.IzsakiRobi.butMail.gschema.xml
 %{_datadir}/icons/hicolor/scalable/apps/io.github.IzsakiRobi.butMail.svg

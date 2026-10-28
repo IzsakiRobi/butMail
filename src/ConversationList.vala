@@ -238,6 +238,25 @@ namespace ButMail {
             }
         }
 
+        public bool select_message (string uid) {
+            search.text = "";
+            refilter ();
+            for (uint i = 0; i < visible_items.get_n_items (); i++) {
+                var conversation = (Conversation) visible_items.get_item (i);
+                for (uint j = 0; j < conversation.messages.get_n_items (); j++) {
+                    if (((Message) conversation.messages.get_item (j)).uid == uid) {
+                        selection.select_item (i, true);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public void refresh_selection () {
+            notify_selection ();
+        }
+
         public void clear_selection () {
             selection.unselect_all ();
         }
@@ -246,8 +265,8 @@ namespace ButMail {
             close_menu ();
             var menu = new Menu ();
             menu.append ("Move to Trash", "win.trash");
-            menu.append ("Mark as Read", "win.mark::read");
-            menu.append ("Mark as Unread", "win.mark::unread");
+            menu.append ("Mark as Read", "win.mark-read");
+            menu.append ("Mark as Unread", "win.mark-unread");
             menu.append ("Star", "win.mark::star");
             menu.append ("Unstar", "win.mark::unstar");
             Graphene.Point position;

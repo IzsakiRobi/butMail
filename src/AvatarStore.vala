@@ -15,7 +15,8 @@ namespace ButMail {
         private bool books_ready { get; set; }
         private Cancellable cancellable = new Cancellable ();
         private uint generation;
-        private int64 free_retry_after;
+        private int64 anylogo_retry_after;
+        private int64 company_retry_after;
         private string directory = Path.build_filename (Environment.get_user_cache_dir (), Application.ID, "avatars");
 
         public AvatarStore (Settings settings) {
@@ -93,22 +94,24 @@ namespace ButMail {
         }
 
         /* ----- Ordered Avatar Sources ----- */
-        public async Gdk.Texture? lookup (string address) {
+        public async Gdk.Texture? lookup (string address, int minimum_size) {
             string email = address.strip ().down ();
             int separator = email.last_index_of ("@");
             if (separator <= 0 || !settings.get_boolean ("show-avatars")) { return null; }
             uint version = generation;
             var job = cancellable;
             string hash = Checksum.compute_for_string (ChecksumType.SHA256, email);
-            var contact = yield fetch ("contact-" + hash, null, email, job);
+            var contact = yield fetch ("contact-" + hash, null, email, job, minimum_size);
             if (version != generation || job.is_cancelled ()) { return null; }
             if (contact != null || !settings.get_boolean ("load-remote-avatars")) { return contact; }
             string domain = Hostname.to_ascii (email.substring (separator + 1)) ?? "";
             if (!Regex.match_simple ("^[a-z0-9][a-z0-9.-]*\\.[a-z]{2,63}$", domain)) { return null; }
             Gdk.Texture? image = yield fetch ("gravatar-" + hash,
-                "https://www.gravatar.com/avatar/" + hash + "?s=128&d=404&r=g", null, job);
+                "https://www.gravatar.com/avatar/" + hash + "?s=256&d=404&r=g", null, job, minimum_size);
             if (version != generation || job.is_cancelled ()) { return null; }
             if (image != null) { return image; }
+            try { domain = Soup.tld_get_base_domain (domain); }
+            catch (Error error) { return null; }
             var credentials = LogoCredentials.get_default ();
             yield credentials.ensure_ready ();
             if (version != generation) { return null; }
@@ -116,18 +119,24 @@ namespace ButMail {
                 string token = credentials.key;
                 string key_hash = Checksum.compute_for_string (ChecksumType.SHA256, token);
                 image = yield fetch ("logodev-" + domain + "-" + key_hash,
-                    "https://img.logo.dev/" + domain + "?size=256&format=png&fallback=404&token=" + Uri.escape_string (token), null, job);
+                    "https://img.logo.dev/" + domain + "?size=256&format=png&fallback=404&token=" + Uri.escape_string (token), null, job, minimum_size);
             }
             if (version != generation || job.is_cancelled ()) { return null; }
             if (image == null) {
                 image = yield fetch ("anylogo-" + domain,
-                    "https://img.anylogo.dev/" + domain + "?size=256&format=png&fallback=404", null, job);
+                    "https://img.anylogo.dev/" + domain + "?size=256&fallback=404", null, job, minimum_size);
+            }
+            if (version != generation || job.is_cancelled ()) { return null; }
+            if (image == null) {
+                string company_domain = domain == "firefox.com" ? "Firefox.com" : domain;
+                image = yield fetch ("companyenrich-" + company_domain,
+                    "https://api.companyenrich.com/logo/" + company_domain, null, job, minimum_size);
             }
             return version == generation && !job.is_cancelled () ? image : null;
         }
 
         /* ----- Shared Requests and Cache ----- */
-        private async Gdk.Texture? fetch (string key, string? url, string? email, Cancellable job) {
+        private async Gdk.Texture? fetch (string key, string? url, string? email, Cancellable job, int minimum_size) {
             var existing = entries.lookup (key);
             if (existing != null && (!existing.ready || existing.expires > get_real_time () / 1000000)) {
                 if (!existing.ready) {
@@ -135,7 +144,7 @@ namespace ButMail {
                     yield;
                     existing.disconnect (handler);
                 }
-                return existing.texture;
+                return sufficient_size (existing.texture, minimum_size);
             }
             if (entries.size () >= 256) { entries.remove_all (); }
             var entry = new AvatarEntry ();
@@ -144,14 +153,14 @@ namespace ButMail {
                 if (email != null) {
                     entry.texture = yield contact_photo (email, job);
                 } else {
-                    string filename = Path.build_filename (directory, Checksum.compute_for_string (ChecksumType.SHA256, key) + ".png");
+                    string filename = Path.build_filename (directory, Checksum.compute_for_string (ChecksumType.SHA256, "native-v2-" + key) + ".png");
                     var file = File.new_for_path (filename);
                     try {
                         var info = yield file.query_info_async (FileAttribute.TIME_MODIFIED, FileQueryInfoFlags.NONE, Priority.DEFAULT, job);
                         if ((int64) info.get_attribute_uint64 (FileAttribute.TIME_MODIFIED) + 604800 > get_real_time () / 1000000) {
                             uint8[] cached;
                             yield file.load_contents_async (job, out cached, null);
-                            entry.texture = decode (new Bytes (cached), true, false);
+                            entry.texture = decode (new Bytes (cached), true, false, key.has_prefix ("companyenrich-"));
                         }
                     } catch (Error error) { }
                     if (entry.texture == null && !job.is_cancelled ()) {
@@ -166,16 +175,26 @@ namespace ButMail {
             } catch (Error error) { }
             entry.expires = get_real_time () / 1000000 + (email != null ? 300 : entry.texture == null ? 3600 : 86400);
             entry.ready = true;
-            return entry.texture;
+            return sufficient_size (entry.texture, minimum_size);
+        }
+
+        private Gdk.Texture? sufficient_size (Gdk.Texture? texture, int minimum_size) {
+            return texture != null && texture.width >= minimum_size && texture.height >= minimum_size ? texture : null;
         }
 
         private async Gdk.Texture? download (string key, string url, Cancellable job) throws Error {
-            bool free_source = key.has_prefix ("anylogo-");
-            if (free_source && free_retry_after > get_monotonic_time ()) { return null; }
+            bool anylogo = key.has_prefix ("anylogo-");
+            bool companyenrich = key.has_prefix ("companyenrich-");
+            if ((anylogo && anylogo_retry_after > get_monotonic_time ()) ||
+                (companyenrich && company_retry_after > get_monotonic_time ())) { return null; }
             var request = new Soup.Message ("GET", url);
             var stream = yield session.send_async (request, Priority.DEFAULT, job);
-            if (request.status_code == 429 && free_source) { free_retry_after = get_monotonic_time () + 60000000; }
-            if (request.status_code != 200 || request.response_headers.get_one ("X-Anylogo-Fallback") != null) {
+            if (request.status_code == 429) {
+                if (anylogo) { anylogo_retry_after = get_monotonic_time () + 60000000; }
+                if (companyenrich) { company_retry_after = get_monotonic_time () + 60000000; }
+            }
+            if (request.status_code != 200 ||
+                (anylogo && request.response_headers.get_one ("X-Anylogo-Fallback") != null)) {
                 yield stream.close_async (Priority.DEFAULT, null);
                 return null;
             }
@@ -189,18 +208,38 @@ namespace ButMail {
             yield stream.close_async (Priority.DEFAULT, null);
             if (bytes.len > 2 * 1024 * 1024) { return null; }
             bool vector = request.response_headers.get_content_type (null) == "image/svg+xml";
-            return decode (ByteArray.free_to_bytes ((owned) bytes), true, vector);
+            return decode (ByteArray.free_to_bytes ((owned) bytes), true, vector, companyenrich);
         }
 
-        private Gdk.Texture? decode (Bytes bytes, bool strict, bool vector) throws Error {
+        /* ----- CompanyEnrich Generated Placeholders ----- */
+        private bool is_generated_monogram (Gdk.Pixbuf image) {
+            if (image.width != 128 || image.height != 128) { return false; }
+            unowned uint8[] pixels = image.get_pixels ();
+            bool has_letters = false;
+            for (int y = 0; y < 128; y++) {
+                for (int x = 0; x < 128; x++) {
+                    int offset = y * image.rowstride + x * image.n_channels;
+                    uint8 shade = pixels[offset];
+                    if (pixels[offset + 1] != shade || pixels[offset + 2] != shade || shade > 221 ||
+                        (image.has_alpha && pixels[offset + 3] != 255)) { return false; }
+                    if (shade == 221) { continue; }
+                    if (x < 12 || x > 116 || y < 40 || y > 88) { return false; }
+                    has_letters = true;
+                }
+            }
+            return has_letters;
+        }
+
+        private Gdk.Texture? decode (Bytes bytes, bool strict, bool vector, bool reject_placeholder = false) throws Error {
             bool valid = false;
             var loader = new Gdk.PixbufLoader ();
             loader.size_prepared.connect ((width, height) => {
                 valid = width > 0 && height > 0 && width <= 4096 && height <= 4096 &&
-                    (!strict || (width == height && (vector || width >= 128)));
+                    (!strict || (width == height && (vector || width >= 48)));
                 int longest = int.max (width, height);
-                loader.set_size (valid ? int.max (1, width * 128 / longest) : 1,
-                    valid ? int.max (1, height * 128 / longest) : 1);
+                int target = vector ? 256 : int.min (256, longest);
+                loader.set_size (valid ? int.max (1, width * target / longest) : 1,
+                    valid ? int.max (1, height * target / longest) : 1);
             });
             bool complete = false;
             try { loader.write (bytes.get_data ()); }
@@ -209,7 +248,9 @@ namespace ButMail {
                 catch (Error error) { }
             }
             var pixbuf = loader.get_pixbuf ();
-            return complete && valid && pixbuf != null ? Gdk.Texture.for_pixbuf (pixbuf) : null;
+            if (!complete || !valid || pixbuf == null ||
+                (reject_placeholder && is_generated_monogram (pixbuf))) { return null; }
+            return Gdk.Texture.for_pixbuf (pixbuf);
         }
     }
 }

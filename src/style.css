@@ -30,11 +30,7 @@
 .butmail .folder-count { font-size: 0.85em; font-weight: 700; }
 
 /* ----- Message Cards ----- */
-.butmail .message-header { padding: 12px 16px; border-radius: 12px; }
-.butmail .message-header,
-.butmail .message-header:hover,
-.butmail .message-header:active,
-.butmail .message-header:checked { background: none; }
+.butmail .message-header { padding: 12px 16px; border-radius: 12px; font-weight: 700; background: none; }
 .butmail .message-card-header { border-radius: 12px; }
 .butmail .message-card:not(.collapsed) .message-card-header,
 .butmail .message-card:not(.collapsed) .message-header { border-radius: 12px 12px 0 0; }
@@ -57,6 +53,10 @@
 }
 .butmail .message-card.collapsed { margin-bottom: -28px; }
 .butmail .message-card:last-child { margin-bottom: 0; }
+.butmail .message-address { font-size: 0.9em; font-weight: normal; opacity: 0.72; }
+.butmail .address-copy { min-width: 18px; min-height: 18px; padding: 1px; opacity: 0; }
+.butmail .message-address-line:hover .address-copy,
+.butmail .message-address-line:focus-within .address-copy { opacity: 1; }
 
 /* ----- Folder Drag and Drop ----- */
 .butmail .folder-insertion-marker {

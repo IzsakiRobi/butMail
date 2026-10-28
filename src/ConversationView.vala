@@ -15,6 +15,7 @@ namespace ButMail {
         public signal void body_requested (Message message);
         public signal void star_requested (Message message, bool starred);
         public signal void compose_requested (ComposeMode mode, Message message);
+        public signal void address_copied ();
 
         public ConversationView (Settings settings) {
             Object (orientation: Gtk.Orientation.VERTICAL);
@@ -119,6 +120,7 @@ namespace ButMail {
             card.body_requested.connect ((message) => { body_requested (message); });
             card.star_requested.connect ((message, starred) => { star_requested (message, starred); });
             card.compose_requested.connect ((mode) => { compose_requested (mode, message); });
+            card.address_copied.connect (() => address_copied ());
             return card;
         }
     }

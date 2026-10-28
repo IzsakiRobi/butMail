@@ -35,6 +35,8 @@ executable(
     'OnlineAccounts.vala',
     'MailSession.vala',
     'MailBackend.vala',
+    'InboxMonitor.vala',
+    'NotificationTracker.vala',
     'MailCache.vala',
     resources,
     dependencies: [
@@ -52,6 +54,14 @@ executable(
     install: true
 )
 install_data(application_id + '.desktop', install_dir: get_option('datadir') / 'applications')
+service = configuration_data()
+service.set('APPLICATION_EXECUTABLE', get_option('prefix') / get_option('bindir') / application_id)
+configure_file(
+    input: application_id + '.service.in',
+    output: application_id + '.service',
+    configuration: service,
+    install_dir: get_option('datadir') / 'dbus-1/services'
+)
 install_data(application_id + '.metainfo.xml', install_dir: get_option('datadir') / 'metainfo')
 install_data(application_id + '.gschema.xml', install_dir: get_option('datadir') / 'glib-2.0/schemas')
 install_data(application_id + '.svg', install_dir: get_option('datadir') / 'icons/hicolor/scalable/apps')

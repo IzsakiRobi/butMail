@@ -8,3 +8,5 @@ Terminal=false
 Categories=Network;Email;
 Keywords=Mail;Email;IMAP;SMTP;
 StartupNotify=true
+X-GNOME-UsesNotifications=true
+DBusActivatable=true

@@ -28,6 +28,7 @@ namespace ButMail {
             app.settings.bind ("show-avatars", this, "visible", SettingsBindFlags.GET);
             store = app.avatars;
             handler = store.changed.connect (update);
+            notify["scale-factor"].connect (update);
             update ();
         }
 
@@ -35,7 +36,7 @@ namespace ButMail {
             uint current = ++request;
             avatar.custom_image = null;
             weak SenderAvatar self = this;
-            store.lookup.begin (address, (obj, result) => {
+            store.lookup.begin (address, int.max (48, avatar.size * get_scale_factor ()), (obj, result) => {
                 var texture = ((AvatarStore) obj).lookup.end (result);
                 if (self != null && self.request == current) { self.avatar.custom_image = texture; }
             });
