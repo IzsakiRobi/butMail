@@ -14,6 +14,9 @@ BuildRequires:  desktop-file-utils
 BuildRequires:  pkgconfig(gtk4) >= 4.12
 BuildRequires:  pkgconfig(libadwaita-1) >= 1.6
 BuildRequires:  pkgconfig(webkitgtk-6.0) >= 2.42
+BuildRequires:  pkgconfig(libsoup-3.0)
+BuildRequires:  pkgconfig(gdk-pixbuf-2.0)
+BuildRequires:  pkgconfig(libebook-1.2)
 BuildRequires:  pkgconfig(libsecret-1)
 BuildRequires:  pkgconfig(camel-1.2) >= 3.58
 BuildRequires:  pkgconfig(libedataserver-1.2) >= 3.58
@@ -41,7 +44,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.IzsakiRobi.
 
 %files
 %license COPYING
-%doc README.md
+%doc README.md butMail-logo.png
 %{_bindir}/io.github.IzsakiRobi.butMail
 %{_datadir}/applications/io.github.IzsakiRobi.butMail.desktop
 %{_datadir}/metainfo/io.github.IzsakiRobi.butMail.metainfo.xml
@@ -51,3 +54,4 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/io.github.IzsakiRobi.
 %changelog
 * Wed Oct 28 2026 IzsakiRobi <15942662+IzsakiRobi@users.noreply.github.com> - 0.5-1
 - Introduce butMail with the GTK 4 and libadwaita interface.
+- Refine avatars, message rendering, draft dialogs and tabbed preferences.

@@ -7,6 +7,7 @@ namespace ButMail {
         public bool modified { get; private set; }
         public bool ready { get; private set; }
         private WebKit.WebView view;
+        private Gtk.Overlay editor_area;
         private Cancellable cancellable = new Cancellable ();
         private ulong theme_handler;
         private const string WORLD = "butmail-editor";
@@ -27,6 +28,7 @@ namespace ButMail {
             }
             view = (WebKit.WebView) Object.new (typeof (WebKit.WebView),
                 "network-session", new WebKit.NetworkSession.ephemeral (), "user-content-manager", manager);
+            view.set_background_color (Gdk.RGBA () { alpha = 0 });
             view.editable = true;
             view.vexpand = true;
             view.get_settings ().enable_javascript_markup = false;
@@ -64,19 +66,25 @@ namespace ButMail {
             tools.append (image);
             append (tools);
             append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
-            append (view);
+            var loading = new LoadingIndicator ();
+            editor_area = new Gtk.Overlay () { child = view, vexpand = true };
+            editor_area.add_css_class ("butmail-editor-surface");
+            editor_area.add_overlay (loading);
+            append (editor_area);
             view.load_changed.connect ((event) => {
                 if (event == WebKit.LoadEvent.FINISHED) {
                     tools.sensitive = true;
                     ready = true;
                     update_theme ();
+                    loading.visible = false;
                 }
             });
+            update_theme ();
             theme_handler = Adw.StyleManager.get_default ().notify["dark"].connect (update_theme);
             try {
                 var template = resources_lookup_data (Application.RESOURCE_PATH + "/editor.html", ResourceLookupFlags.NONE);
                 string content = is_html ? initial_text : Markup.escape_text (initial_text).replace ("\n", "<br>") + "<br>";
-                view.load_html (((string) template.get_data ()).replace ("@CONTENT@", content), "about:blank");
+                view.load_html (((string) template.get_data ()).replace ("@CONTENT@", content).replace ("@THEME@", Adw.StyleManager.get_default ().dark ? "data-dark" : ""), "about:blank");
             } catch (Error error) {
                 warning ("Unable to load editor document: %s", error.message);
             }
@@ -182,9 +190,9 @@ namespace ButMail {
             return result.to_string ();
         }
 
-        public void insert_signature () {
+        public void insert_signature (string account) {
             var settings = new Settings (Application.ID);
-            string saved = settings.get_string ("signature-html");
+            string saved = Signatures.get_html (settings, account);
             if (saved != "") {
                 execute ("InsertHTML", "<br><br>" + saved);
                 return;
@@ -211,6 +219,9 @@ namespace ButMail {
 
         private void update_theme () {
             bool dark = Adw.StyleManager.get_default ().dark;
+            if (dark) { editor_area.add_css_class ("dark"); }
+            else { editor_area.remove_css_class ("dark"); }
+            if (!ready) { return; }
             view.evaluate_javascript.begin ("document.documentElement.toggleAttribute('data-dark', " + (dark ? "true" : "false") + ");",
                 -1, WORLD, null, cancellable, (obj, result) => {
                     try {

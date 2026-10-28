@@ -9,11 +9,13 @@ namespace ButMail {
 
         public Settings settings { get; private set; }
         public OnlineAccounts online_accounts { get; private set; }
+        public AvatarStore avatars { get; private set; }
 
         public Application () {
             Object (application_id: ID, flags: ApplicationFlags.DEFAULT_FLAGS);
             settings = new Settings (ID);
             online_accounts = new OnlineAccounts ();
+            avatars = new AvatarStore (settings);
         }
 
         protected override void startup () {
@@ -54,6 +56,9 @@ namespace ButMail {
                     website = "https://github.com/IzsakiRobi/butMail",
                     issue_url = "https://github.com/IzsakiRobi/butMail/issues"
                 };
+                dialog.add_link ("Company logos: Logo.dev", "https://logo.dev");
+                dialog.add_link ("Free company logos: AnyLogo", "https://anylogo.dev");
+                dialog.add_link ("Avatars: Gravatar", "https://gravatar.com");
                 dialog.present (active_window);
             });
             add_action (about);
@@ -76,8 +81,12 @@ namespace ButMail {
         }
 
         private void update_color_scheme () {
+            preview_color_scheme (settings.get_uint ("color-scheme"));
+        }
+
+        public void preview_color_scheme (uint value) {
             Adw.ColorScheme[] schemes = { Adw.ColorScheme.DEFAULT, Adw.ColorScheme.FORCE_LIGHT, Adw.ColorScheme.FORCE_DARK };
-            style_manager.color_scheme = schemes[settings.get_uint ("color-scheme")];
+            style_manager.color_scheme = schemes[value];
         }
 
         protected override void activate () {

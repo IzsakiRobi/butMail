@@ -107,3 +107,33 @@
     0%, 100% { opacity: 0; }
     50% { opacity: 1; }
 }
+
+/* ----- Loading Indicator ----- */
+.butmail-loading-indicator { opacity: 0.4; }
+.butmail-loading-surface { background-color: var(--view-bg-color); }
+
+/* ----- Web Content Surfaces ----- */
+.butmail-reader-surface, .butmail-editor-surface { background-color: #fff; }
+.butmail-editor-surface.dark { background-color: #1d1d20; }
+
+/* ----- Draft Confirmation Focus ----- */
+.draft-confirmation.initial-focus button:focus-visible { outline: none; box-shadow: none; }
+
+/* ----- Sender Avatars ----- */
+.sender-avatar { background-color: #fff; border-radius: 50%; }
+.sender-avatar avatar { background-image: none; box-shadow: none; color: #fff; }
+.sender-avatar avatar.color1 { background-color: #337fdc; }
+.sender-avatar avatar.color2 { background-color: #168aa4; }
+.sender-avatar avatar.color3 { background-color: #23865c; }
+.sender-avatar avatar.color4 { background-color: #538641; }
+.sender-avatar avatar.color5 { background-color: #a17c09; }
+.sender-avatar avatar.color6 { background-color: #b57900; }
+.sender-avatar avatar.color7 { background-color: #cf5900; }
+.sender-avatar avatar.color8 { background-color: #ce3548; }
+.sender-avatar avatar.color9 { background-color: #c03565; }
+.sender-avatar avatar.color10 { background-color: #9945b5; }
+.sender-avatar avatar.color11 { background-color: #7a59ca; }
+.sender-avatar avatar.color12 { background-color: #3975b8; }
+.sender-avatar avatar.color13 { background-color: #a83c98; }
+.sender-avatar avatar.color14 { background-color: #6e6d71; }
+.sender-avatar avatar.image { background-color: #fff; }

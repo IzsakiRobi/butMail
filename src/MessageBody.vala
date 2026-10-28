@@ -8,18 +8,26 @@ namespace ButMail {
         private static weak WebKit.WebView? related_view;
         private Message message;
         private ulong body_handler;
+        private ulong loaded_handler;
+        private ulong error_handler;
 
         public MessageBody (Message message) {
-            Object (orientation: Gtk.Orientation.VERTICAL);
+            Object (orientation: Gtk.Orientation.VERTICAL, vexpand: false);
             this.message = message;
             body_handler = message.notify["body"].connect (render);
+            loaded_handler = message.notify["loaded"].connect (render);
+            error_handler = message.notify["load-error"].connect (render);
             render ();
         }
 
         private void render () {
             while (get_first_child () != null) { remove (get_first_child ()); }
-            if (!message.is_html) {
-                var label = new Gtk.Label (message.body) {
+            if (!message.loaded && message.load_error == null) {
+                append (new LoadingIndicator ());
+                return;
+            }
+            if (!message.is_html || message.load_error != null) {
+                var label = new Gtk.Label (message.load_error ?? message.body) {
                     xalign = 0, wrap = true, wrap_mode = Pango.WrapMode.WORD_CHAR, selectable = true
                 };
                 label.add_css_class ("message-body");
@@ -38,7 +46,12 @@ namespace ButMail {
                 ? (WebKit.WebView) Object.new (typeof (WebKit.WebView), "related-view", related_view, "user-content-manager", manager)
                 : (WebKit.WebView) Object.new (typeof (WebKit.WebView), "network-session", reader_session, "user-content-manager", manager);
             related_view = view;
+            var loading = new LoadingIndicator ();
+            var page = new Gtk.Overlay () { child = view };
+            page.add_css_class ("butmail-reader-surface");
+            page.add_overlay (loading);
             view.height_request = 160;
+            view.set_background_color (Gdk.RGBA () { alpha = 0 });
             weak WebKit.WebView weak_view = view;
             var web_settings = view.get_settings ();
             web_settings.enable_javascript_markup = false;
@@ -50,7 +63,10 @@ namespace ButMail {
             web_settings.enable_fullscreen = false;
             manager.script_message_received["height"].connect ((value) => {
                 int height = (int) value.to_double ();
-                if (weak_view != null) { weak_view.height_request = int.max (64, int.min (20000, height)); }
+                if (weak_view != null) {
+                    weak_view.height_request = int.max (64, int.min (20000, height));
+                    loading.visible = false;
+                }
             });
             manager.add_script (new WebKit.UserScript.for_world (
                 "new ResizeObserver(() => { window.webkit.messageHandlers.height.postMessage(Math.ceil(document.body.getBoundingClientRect().height) + 40); }).observe(document.body);",
@@ -73,13 +89,20 @@ namespace ButMail {
             string image_sources = remote_images ? "data: https: http:" : "data:";
             string policy = "default-src 'none'; img-src " + image_sources + "; style-src 'unsafe-inline'; script-src 'none'; base-uri 'none'; form-action 'none'";
             view.load_html ("<!doctype html><html><head><meta charset='utf-8'><meta http-equiv='Content-Security-Policy' content=\"" + policy +
-                "\"><style>html{overflow:hidden}body{margin:20px 24px;font:14px sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}</style></head><body>" +
+                "\"><style>html{overflow:hidden;background:white;color:#202020}body{margin:20px 24px;font:14px sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}</style></head><body>" +
                 message.body + "</body></html>", "about:blank");
-            append (view);
+            view.load_changed.connect ((event) => {
+                if (event == WebKit.LoadEvent.FINISHED && weak_view != null) {
+                    loading.visible = false;
+                }
+            });
+            append (page);
         }
 
         protected override void dispose () {
             if (body_handler != 0) { message.disconnect (body_handler); body_handler = 0; }
+            if (loaded_handler != 0) { message.disconnect (loaded_handler); loaded_handler = 0; }
+            if (error_handler != 0) { message.disconnect (error_handler); error_handler = 0; }
             base.dispose ();
         }
     }

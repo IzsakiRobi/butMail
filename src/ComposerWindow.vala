@@ -32,7 +32,7 @@ namespace ButMail {
         private string[] initial_fields;
         private uint initial_sender;
         private bool discard_confirmed;
-        private DraftDialog? close_dialog;
+        private Adw.AlertDialog? close_dialog;
         private Gtk.FlowBox attachment_box;
         private GenericArray<File> attachments = new GenericArray<File> ();
         private Cancellable cancellable = new Cancellable ();
@@ -147,7 +147,11 @@ namespace ButMail {
             attach.clicked.connect (() => choose_attachments.begin ());
             actions.pack_start (attach);
             var signature = new Gtk.Button.from_icon_name ("document-edit-symbolic") { tooltip_text = "Insert Signature" };
-            signature.clicked.connect (editor.insert_signature);
+            signature.clicked.connect (() => {
+                if (sender.selected != Gtk.INVALID_LIST_POSITION) {
+                    editor.insert_signature (((Folder) accounts.get_item (sender.selected)).account);
+                }
+            });
             actions.pack_start (signature);
             var send_content = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
             send_content.append (new Gtk.Image.from_icon_name ("mail-send-symbolic"));
@@ -361,7 +365,31 @@ namespace ButMail {
 
         private void ask_close (bool discard_only) {
             if (sending || close_dialog != null) { return; }
-            close_dialog = new DraftDialog (discard_only);
+            close_dialog = new Adw.AlertDialog (
+                discard_only ? "Permanently Delete This Draft?" : "Save This Draft?",
+                discard_only ? "You cannot undo this action or recover your changes."
+                    : "Save your message to Drafts, keep editing, or delete this draft.");
+            close_dialog.add_response ("cancel", discard_only ? "Cancel" : "Keep Editing");
+            close_dialog.add_response ("discard", "Delete Draft");
+            close_dialog.set_response_appearance ("discard", Adw.ResponseAppearance.DESTRUCTIVE);
+            if (!discard_only) {
+                close_dialog.add_response ("save", "Save Draft");
+                close_dialog.set_response_appearance ("save", Adw.ResponseAppearance.SUGGESTED);
+            }
+            close_dialog.add_css_class ("draft-confirmation");
+            close_dialog.add_css_class ("initial-focus");
+            var navigation = new Gtk.EventControllerKey () { propagation_phase = Gtk.PropagationPhase.CAPTURE };
+            weak Adw.AlertDialog prompt = close_dialog;
+            navigation.key_pressed.connect ((key, code, state) => {
+                if (prompt != null && (key == Gdk.Key.Tab || key == Gdk.Key.ISO_Left_Tab)) {
+                    prompt.remove_css_class ("initial-focus");
+                }
+                return false;
+            });
+            ((Gtk.Widget) close_dialog).add_controller (navigation);
+            close_dialog.prefer_wide_layout = false;
+            close_dialog.default_response = "cancel";
+            close_dialog.close_response = "cancel";
             close_dialog.response.connect ((response) => {
                 close_dialog = null;
                 if (response == "save") { submit.begin (true); }

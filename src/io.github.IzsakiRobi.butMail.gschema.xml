@@ -14,6 +14,7 @@
     <key name="undo-send" type="b"><default>true</default></key>
     <key name="undo-delete" type="b"><default>true</default></key>
     <key name="run-in-background" type="b"><default>true</default></key>
+    <key name="account-signatures" type="a{ss}"><default>{}</default></key>
     <key name="signature-html" type="s"><default>''</default></key>
     <key name="folder-order" type="a{sas}"><default>{}</default></key>
   </schema>

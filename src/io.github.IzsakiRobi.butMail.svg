@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="1024" height="1024" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
-  <title id="title">butMail — Smile, fitted at-sign</title>
-  <desc id="desc">The original smiling white envelope, unchanged, with its blue at-sign fitted into the existing notch and approximately three pixels of transparent clearance at 128px. Nothing but mail.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">butMail — Smile, taller envelope</title>
+  <desc id="desc">The accepted smiling-envelope design with a subtly taller paper body. The baseline and width stay fixed; the flap, smile and fitted blue at-sign move upward without stretching. Nothing but mail.</desc>
   <defs>
-    <path id="envelope-shape" d="M 24,36 H 66 C 68.209,36 70,37.791 70,40 V 43 C 70,60 83,72 100,72 H 108 C 110.209,72 112,73.791 112,76 V 100 C 112,106.627 106.627,112 100,112 H 24 C 17.373,112 12,106.627 12,100 V 48 C 12,41.373 17.373,36 24,36 Z"/>
+    <path id="envelope-shape" d="M 24,30 H 66 C 68.209,30 70,31.791 70,34 V 37 C 70,54 83,66 100,66 H 108 C 110.209,66 112,67.791 112,70 V 100 C 112,106.627 106.627,112 100,112 H 24 C 17.373,112 12,106.627 12,100 V 42 C 12,35.373 17.373,30 24,30 Z"/>
     <path id="at-shape" d="M 85,99.52 C 78.63,103.12 71.38,105 64,105 C 40.252,105 21,85.748 21,62 C 21,38.252 40.252,19 64,19 C 87.748,19 107,38.252 107,62 C 107,75 101,83 92,83 C 84,83 80,77 82,65 L 85,45 M 83,53 C 79,46 69,44 61,47 C 50,51 45,62 48,72 C 51,82 63,84 72,77 C 79,72 81,62 83,53"/>
-    <linearGradient id="paper" x1="0" y1="36" x2="0" y2="112" gradientUnits="userSpaceOnUse">
+    <linearGradient id="paper" x1="0" y1="30" x2="0" y2="112" gradientUnits="userSpaceOnUse">
       <stop stop-color="#ffffff"/>
       <stop offset="0.55" stop-color="#f6f5f4"/>
       <stop offset="1" stop-color="#e6e7eb"/>
@@ -26,23 +26,25 @@
       <stop offset="1" stop-color="#333b49"/>
     </linearGradient>
   </defs>
+  <g id="composition" inkscape:groupmode="layer" inkscape:label="Centered composition · 106%" transform="translate(-9.246000 -6.960000) scale(1.06)">
   <g id="paper-edge" inkscape:groupmode="layer" inkscape:label="01 · Paper thickness">
     <use xlink:href="#envelope-shape" fill="url(#paper-profile)" transform="translate(0 4)"/>
   </g>
   <g id="envelope" inkscape:groupmode="layer" inkscape:label="02 · White envelope">
     <use xlink:href="#envelope-shape" fill="url(#paper)" stroke="#c6cad2" stroke-width="0.8"/>
-    <path id="lower-left-fold" d="M 17,104 L 34,88" fill="none" stroke="#d8dbe1" stroke-width="1.2" stroke-linecap="round"/>
-    <path id="lower-right-fold" d="M 107,104 L 92,90" fill="none" stroke="#d1d5dc" stroke-width="1.2" stroke-linecap="round"/>
-    <path id="top-fold" d="M 24,36.5 H 66 C 68,36.5 69.5,38 69.5,40 V 43 C 69.5,58 80,68.5 91,71 C 79,78 73,82 64,82 C 49,82 36,71 26,59 L 13,47 C 13.5,41 18,36.5 24,36.5 Z" fill="#ffffff"/>
+    <path id="lower-left-fold" transform="translate(0 -3)" d="M 17,104 L 34,88" fill="none" stroke="#d8dbe1" stroke-width="1.2" stroke-linecap="round"/>
+    <path id="lower-right-fold" transform="translate(0 -3)" d="M 107,104 L 92,90" fill="none" stroke="#d1d5dc" stroke-width="1.2" stroke-linecap="round"/>
+    <path id="top-fold" transform="translate(0 -6)" d="M 24,36.5 H 66 C 68,36.5 69.5,38 69.5,40 V 43 C 69.5,58 80,68.5 91,71 C 79,78 73,82 64,82 C 49,82 36,71 26,59 L 13,47 C 13.5,41 18,36.5 24,36.5 Z" fill="#ffffff"/>
     <path id="lower-edge-light" d="M 23,110.5 H 100 C 104.5,110.5 108.5,107.5 110,103.5" fill="none" stroke="#ffffff" stroke-opacity="0.66" stroke-width="1" stroke-linecap="round"/>
   </g>
-  <g id="smile" inkscape:groupmode="layer" inkscape:label="03 · Smiling fold" fill="none" stroke-linecap="round">
+  <g id="smile" transform="translate(0 -6)" inkscape:groupmode="layer" inkscape:label="03 · Smiling fold" fill="none" stroke-linecap="round">
     <path d="M 27,60.5 C 40,75.5 51,83.5 64,83.5 C 71,83.5 77,81.5 82,78.5" stroke="#ffffff" stroke-width="5.2"/>
     <path d="M 27,59 C 40,74 51,82 64,82 C 71,82 77,80 82,77" stroke="url(#smile-color)" stroke-width="4.8"/>
   </g>
-  <g id="blue-at" inkscape:groupmode="layer" inkscape:label="04 · Blue at-sign" transform="translate(65.952 11.512) scale(0.532 0.492)" fill="none" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+  <g id="blue-at" inkscape:groupmode="layer" inkscape:label="04 · Blue at-sign" transform="translate(65.952 5.512) scale(0.532 0.492)" fill="none" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
     <use xlink:href="#at-shape" stroke="#1c71d8" transform="translate(0 4)"/>
     <use xlink:href="#at-shape" stroke="url(#blue)"/>
     <path d="M 21.1,59 C 22.6,36 41,19 64,19 C 81,19 96,29 103,43" stroke="#b9dcff" stroke-width="1.5" stroke-opacity="0.65" transform="translate(0 -6.1)"/>
+  </g>
   </g>
 </svg>

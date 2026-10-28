@@ -279,7 +279,7 @@ namespace ButMail {
                 foreach (var member in members.data) {
                     string name, address;
                     parse_address (member.from, out name, out address);
-                    conversation.messages.append (new Message (name, address, member.to ?? "", format_time (member.date_sent), "Loading message…") {
+                    conversation.messages.append (new Message (name, address, member.to ?? "", format_time (member.date_sent), "") {
                         uid = member.uid, starred = (member.flags & Camel.MessageFlags.FLAGGED) != 0
                     });
                 }
@@ -355,6 +355,7 @@ namespace ButMail {
             if (conversation.messages.get_n_items () == 0) { return; }
             var wanted = preferred ?? (Message) conversation.messages.get_item (conversation.messages.get_n_items () - 1);
             if (wanted.loaded) { return; }
+            wanted.load_error = null;
             while (loading_conversations.contains (wanted)) {
                 bool resumed = false;
                 SourceFunc resume = load_conversation.callback;
@@ -370,6 +371,7 @@ namespace ButMail {
                 cancellable.set_error_if_cancelled ();
             }
             if (wanted.loaded) { return; }
+            wanted.load_error = null;
             loading_conversations.insert (wanted, true);
             try {
                 var members = threads.lookup (conversation);

@@ -75,7 +75,7 @@ namespace ButMail {
                 if (current_conversation == null) { return; }
                 backend.load_conversation.begin (current_conversation, message_loading, message, (obj, result) => {
                     try { backend.load_conversation.end (result); }
-                    catch (Error error) { if (!(error is IOError.CANCELLED)) { message.body = "Unable to load message: " + error.message; } }
+                    catch (Error error) { if (!(error is IOError.CANCELLED)) { message.load_error = "Unable to load message: " + error.message; } }
                 });
             });
             messages.star_requested.connect ((message, starred) => {
@@ -161,7 +161,7 @@ namespace ButMail {
                 action_name = "win.new-folder", tooltip_text = "New Folder"
             });
             folder_actions.pack_end (new Gtk.MenuButton () {
-                icon_name = "open-menu-symbolic", menu_model = menu, tooltip_text = "Main Menu"
+                icon_name = "emblem-system-symbolic", menu_model = menu, tooltip_text = "Application Menu"
             });
             folders_toolbar.add_bottom_bar (folder_actions);
 
@@ -196,14 +196,14 @@ namespace ButMail {
             var refresh_button = new Gtk.Button.from_icon_name ("view-refresh-symbolic") {
                 action_name = "win.refresh", tooltip_text = "Refresh Mail (F5)"
             };
-            list_actions.pack_start (refresh_button);
             backend.notify["online"].connect (update_connection_indicator);
             backend.notify["is-connecting"].connect (update_connection_indicator);
             update_connection_indicator ();
             var fallback_menu = new Gtk.MenuButton () {
-                icon_name = "open-menu-symbolic", menu_model = menu, tooltip_text = "Main Menu", visible = false
+                icon_name = "emblem-system-symbolic", menu_model = menu, tooltip_text = "Application Menu", visible = false
             };
             list_actions.pack_start (fallback_menu);
+            list_actions.pack_start (refresh_button);
             refresh_spinner = new Adw.Spinner () {
                 width_request = 16, height_request = 16, valign = Gtk.Align.CENTER, tooltip_text = "Refreshing…"
             };
@@ -214,13 +214,16 @@ namespace ButMail {
 
             var message_toolbar = new Adw.ToolbarView () { content = messages };
             var message_header = new Adw.HeaderBar () { title_widget = message_title };
-            message_header.pack_start (new Gtk.Button.from_icon_name ("butmail-reply-symbolic") {
+            message_header.pack_start (new Gtk.Button () {
+                child = new Gtk.Image.from_icon_name ("butmail-reply-symbolic") { pixel_size = 18 },
                 action_name = "win.reply", tooltip_text = "Reply (Ctrl+R)"
             });
-            message_header.pack_start (new Gtk.Button.from_icon_name ("butmail-reply-all-symbolic") {
+            message_header.pack_start (new Gtk.Button () {
+                child = new Gtk.Image.from_icon_name ("butmail-reply-all-symbolic") { pixel_size = 18 },
                 action_name = "win.reply-all", tooltip_text = "Reply All (Ctrl+Shift+R)"
             });
-            message_header.pack_start (new Gtk.Button.from_icon_name ("butmail-forward-symbolic") {
+            message_header.pack_start (new Gtk.Button () {
+                child = new Gtk.Image.from_icon_name ("butmail-forward-symbolic") { pixel_size = 18 },
                 action_name = "win.forward", tooltip_text = "Forward (Ctrl+Shift+F)"
             });
             var marks = new Menu ();
@@ -332,7 +335,7 @@ namespace ButMail {
                             if (!(error is IOError.CANCELLED)) {
                                 for (uint i = 0; i < conversation.messages.get_n_items (); i++) {
                                     var message = (Message) conversation.messages.get_item (i);
-                                    if (!message.loaded) { message.body = "Unable to load message: " + error.message; }
+                                    if (!message.loaded) { message.load_error = "Unable to load message: " + error.message; }
                                 }
                             }
                         }

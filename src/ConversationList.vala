@@ -23,16 +23,18 @@ namespace ButMail {
             unbind_conversation ();
             bound_conversation = conversation;
             while (get_first_child () != null) { remove (get_first_child ()); }
-            var avatar = new Adw.Avatar (42, conversation.sender, true);
+            var latest = conversation.messages.get_n_items () > 0
+                ? (Message) conversation.messages.get_item (conversation.messages.get_n_items () - 1) : null;
+            var avatar = new SenderAvatar (conversation.sender, latest != null ? latest.address : "");
             var avatar_overlay = new Gtk.Overlay () { child = avatar, valign = Gtk.Align.START };
             settings.bind ("show-avatars", avatar_overlay, "visible", SettingsBindFlags.GET);
             unread_dot = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0) {
-                halign = Gtk.Align.END, valign = Gtk.Align.START, can_target = false
+                halign = Gtk.Align.END, valign = Gtk.Align.START, margin_top = 1, margin_end = 1, can_target = false
             };
             unread_dot.add_css_class ("unread-dot");
             avatar_overlay.add_overlay (unread_dot);
             star_icon = new Gtk.Image.from_icon_name ("starred-symbolic") {
-                pixel_size = 14, halign = Gtk.Align.END, valign = Gtk.Align.END, can_target = false
+                pixel_size = 14, halign = Gtk.Align.END, valign = Gtk.Align.END, margin_bottom = 1, margin_end = 1, can_target = false
             };
             star_icon.add_css_class ("conversation-star");
             avatar_overlay.add_overlay (star_icon);

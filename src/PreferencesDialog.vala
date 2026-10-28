@@ -18,13 +18,17 @@ namespace ButMail {
         private bool finished;
 
         public PreferencesDialog (OnlineAccounts online_accounts) {
-            Object (title: "Preferences", content_width: 620, content_height: 720);
+            Object (title: "Preferences", content_width: 840, content_height: 720);
             pending = new Settings (Application.ID);
             pending.delay ();
+            var app = (Application) GLib.Application.get_default ();
+            pending.changed["color-scheme"].connect (() => app.preview_color_scheme (pending.get_uint ("color-scheme")));
             credentials = LogoCredentials.get_default ();
             var toolbar = new Adw.ToolbarView ();
+            var pages = new Adw.ViewStack ();
+            var switcher = new Adw.ViewSwitcher () { stack = pages, policy = Adw.ViewSwitcherPolicy.WIDE };
             var header = new Adw.HeaderBar () {
-                title_widget = new Adw.WindowTitle ("Preferences", "butMail"),
+                title_widget = switcher,
                 show_start_title_buttons = false, show_end_title_buttons = false
             };
             cancel_button = new Gtk.Button.with_label ("Cancel");
@@ -35,7 +39,12 @@ namespace ButMail {
             save_button.clicked.connect (() => save.begin ());
             header.pack_end (save_button);
             toolbar.add_top_bar (header);
-            var page = new Adw.PreferencesPage ();
+            var view_page = new Adw.PreferencesPage ();
+            var reading_page = new Adw.PreferencesPage ();
+            var accounts_page = new Adw.PreferencesPage ();
+            pages.add_titled_with_icon (view_page, "view", "View", "preferences-desktop-display-symbolic");
+            pages.add_titled_with_icon (reading_page, "reading", "Reading", "mail-read-symbolic");
+            pages.add_titled_with_icon (accounts_page, "accounts", "Acc/Sys", "avatar-default-symbolic");
 
             var appearance = new Adw.PreferencesGroup () { title = "Appearance" };
             var scheme = new Adw.ComboRow () {
@@ -43,7 +52,7 @@ namespace ButMail {
             };
             pending.bind ("color-scheme", scheme, "selected", SettingsBindFlags.DEFAULT);
             appearance.add (scheme);
-            page.add (appearance);
+            view_page.add (appearance);
 
             var remote = new Adw.PreferencesGroup () { title = "Remote Content" };
             remote.add (switch_row ("Always Load Remote Images", "always-load-remote-images"));
@@ -52,7 +61,7 @@ namespace ButMail {
             var logos = switch_row ("Load Avatars and Company Logos", "load-remote-avatars");
             avatars.bind_property ("active", logos, "sensitive", BindingFlags.SYNC_CREATE);
             remote.add (logos);
-            page.add (remote);
+            view_page.add (remote);
 
             var key = new Adw.PreferencesGroup () {
                 title = "Logo.dev API Key",
@@ -71,7 +80,7 @@ namespace ButMail {
             key.add (new Gtk.Label ("Create a free <a href=\"https://logo.dev\">Logo.dev</a> account for high-resolution company logos.") {
                 use_markup = true, xalign = 0, wrap = true, margin_top = 8
             });
-            page.add (key);
+            view_page.add (key);
             key_entry.changed.connect (() => {
                 if (!filling_key) {
                     key_dirty = true;
@@ -94,35 +103,38 @@ namespace ButMail {
             reading.add (delay_row ("Undo Time", "undo-time"));
             reading.add (switch_row ("Undo for Send", "undo-send"));
             reading.add (switch_row ("Undo for Delete", "undo-delete"));
-            reading.add (switch_row ("Run in Background", "run-in-background"));
-            page.add (reading);
+            reading_page.add (reading);
 
             var accounts = new Adw.PreferencesGroup () { title = "Accounts and Signatures" };
             var account_status = new Adw.ActionRow () { title = "GNOME Online Accounts", use_markup = false };
             accounts.add (account_status);
-            var detected = new Gtk.ListBox () { selection_mode = Gtk.SelectionMode.NONE };
-            detected.add_css_class ("boxed-list");
-            detected.bind_model (online_accounts.accounts, (item) => {
-                var account = (OnlineAccount) item;
-                return new Adw.ActionRow () { title = account.identity, subtitle = account.provider, use_markup = false };
-            });
-            accounts.add (detected);
-            var account_buttons = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 12) { margin_top = 12, homogeneous = true };
-            var signatures = new Gtk.Button.with_label ("Edit Signatures…");
-            signatures.clicked.connect (() => { new SignatureDialog (pending).present (this); });
-            account_buttons.append (signatures);
-            var account_settings = new Gtk.Button.with_label ("Account Settings…");
+            var detected = new GenericArray<Adw.ActionRow> ();
+            var account_settings = new Gtk.Button.with_label ("Open Online Accounts…") { margin_top = 12 };
             account_settings.clicked.connect (() => OnlineAccounts.open_settings.begin (this));
-            account_buttons.append (account_settings);
-            accounts.add (account_buttons);
-            ulong accounts_handler = online_accounts.changed.connect (() => update_accounts (online_accounts, account_status));
-            update_accounts (online_accounts, account_status);
-            page.add (accounts);
-            toolbar.content = page;
+            accounts.add (account_settings);
+            accounts_page.add (accounts);
+
+            var signatures = new Adw.PreferencesGroup () { title = "Signatures" };
+            var signature_rows = new GenericArray<Adw.ActionRow> ();
+            pending.changed["account-signatures"].connect (() =>
+                update_signatures (online_accounts, signatures, signature_rows));
+            ulong accounts_handler = online_accounts.changed.connect (() => {
+                update_accounts (online_accounts, account_status, accounts, detected);
+                update_signatures (online_accounts, signatures, signature_rows);
+            });
+            update_accounts (online_accounts, account_status, accounts, detected);
+            update_signatures (online_accounts, signatures, signature_rows);
+            accounts_page.add (signatures);
+
+            var system = new Adw.PreferencesGroup () { title = "System" };
+            system.add (switch_row ("Run in Background", "run-in-background"));
+            accounts_page.add (system);
+            toolbar.content = pages;
             child = toolbar;
             closed.connect (() => {
                 finished = true;
                 pending.revert ();
+                app.preview_color_scheme (app.settings.get_uint ("color-scheme"));
                 credentials.disconnect (key_handler);
                 online_accounts.disconnect (accounts_handler);
             });
@@ -151,7 +163,20 @@ namespace ButMail {
             return row;
         }
 
-        private void update_accounts (OnlineAccounts accounts, Adw.ActionRow row) {
+        private void update_accounts (OnlineAccounts accounts, Adw.ActionRow row,
+                                      Adw.PreferencesGroup group, GenericArray<Adw.ActionRow> detected) {
+            while (detected.length > 0) {
+                group.remove (detected[0]);
+                detected.remove_index (0);
+            }
+            for (uint i = 0; i < accounts.accounts.get_n_items (); i++) {
+                var account = (OnlineAccount) accounts.accounts.get_item (i);
+                var item = new Adw.ActionRow () {
+                    title = account.identity, subtitle = account.provider, use_markup = false
+                };
+                group.add (item);
+                detected.add (item);
+            }
             if (!accounts.ready) {
                 row.subtitle = "Checking for mail accounts…";
             } else if (accounts.error_message != null) {
@@ -162,6 +187,28 @@ namespace ButMail {
                     ? "1 mail account found."
                     : "%u mail accounts found.".printf (count);
             }
+        }
+
+        private void update_signatures (OnlineAccounts accounts, Adw.PreferencesGroup group,
+                                        GenericArray<Adw.ActionRow> rows) {
+            while (rows.length > 0) {
+                group.remove (rows[0]);
+                rows.remove_index (0);
+            }
+            for (uint i = 0; i < accounts.accounts.get_n_items (); i++) {
+                var account = (OnlineAccount) accounts.accounts.get_item (i);
+                var row = new Adw.ActionRow () {
+                    title = account.identity, use_markup = false,
+                    subtitle = Signatures.get_html (pending, account.identity) == "" ? "No signature" : "Signature configured"
+                };
+                var edit = new Gtk.Button.with_label ("Edit…") { valign = Gtk.Align.CENTER };
+                edit.clicked.connect (() => { new SignatureDialog (pending, account.identity).present (this); });
+                row.add_suffix (edit);
+                row.activatable_widget = edit;
+                group.add (row);
+                rows.add (row);
+            }
+            group.visible = rows.length > 0;
         }
 
         private void fill_key () {

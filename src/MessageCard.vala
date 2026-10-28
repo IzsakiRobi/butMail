@@ -8,8 +8,8 @@ namespace ButMail {
         public signal void star_requested (Message message, bool starred);
         public signal void compose_requested (ComposeMode mode);
 
-        public MessageCard (Message message, string subject, Settings settings, bool expanded) {
-            Object (orientation: Gtk.Orientation.VERTICAL);
+        public MessageCard (Message message, string subject, bool expanded) {
+            Object (orientation: Gtk.Orientation.VERTICAL, vexpand: false);
             add_css_class ("card");
             add_css_class ("message-card");
             var header = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
@@ -27,8 +27,7 @@ namespace ButMail {
                 }
             });
             var heading = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 14);
-            var avatar = new Adw.Avatar (42, message.sender, true) { valign = Gtk.Align.START };
-            settings.bind ("show-avatars", avatar, "visible", SettingsBindFlags.GET);
+            var avatar = new SenderAvatar (message.sender, message.address) { valign = Gtk.Align.START };
             heading.append (avatar);
             var fields = new Gtk.Grid () { column_spacing = 8, row_spacing = 6, hexpand = true };
             add_field (fields, 0, "From:", message.sender + "\n<" + message.address + ">");

@@ -115,7 +115,7 @@ namespace ButMail {
         }
 
         private Gtk.Widget message_card (Message message, string subject, bool expanded) {
-            var card = new MessageCard (message, subject, settings, expanded);
+            var card = new MessageCard (message, subject, expanded);
             card.body_requested.connect ((message) => { body_requested (message); });
             card.star_requested.connect ((message, starred) => { star_requested (message, starred); });
             card.compose_requested.connect ((mode) => { compose_requested (mode, message); });

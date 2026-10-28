@@ -98,6 +98,7 @@ namespace ButMail {
         public Camel.MimeMessage? draft_mime { get; set; }
         public bool read_only { get; set; }
         public bool loaded { get; set; }
+        public string? load_error { get; set; }
         public bool expanded { get; set; }
         public bool is_html { get; set; }
         public bool starred { get; set; }
