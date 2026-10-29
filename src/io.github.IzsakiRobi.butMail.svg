@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
-  <title id="title">butMail — Smile, taller envelope</title>
-  <desc id="desc">The accepted smiling-envelope design with a subtly taller paper body. The baseline and width stay fixed; the flap, smile and fitted blue at-sign move upward without stretching. Nothing but mail.</desc>
+  <title id="title">butMail — Smile, top-left fit · refined folds</title>
+  <desc id="desc">The matching upper-left variant of the accepted close-fitting butMail icon. One pixel of top and left clearance, with the same proportional size, lower baseline, readable at-sign, tapered edge light and materials. Nothing but mail.</desc>
   <defs>
-    <path id="envelope-shape" d="M 24,30 H 66 C 68.209,30 70,31.791 70,34 V 37 C 70,54 83,66 100,66 H 108 C 110.209,66 112,67.791 112,70 V 100 C 112,106.627 106.627,112 100,112 H 24 C 17.373,112 12,106.627 12,100 V 42 C 12,35.373 17.373,30 24,30 Z"/>
-    <path id="at-shape" d="M 85,99.52 C 78.63,103.12 71.38,105 64,105 C 40.252,105 21,85.748 21,62 C 21,38.252 40.252,19 64,19 C 87.748,19 107,38.252 107,62 C 107,75 101,83 92,83 C 84,83 80,77 82,65 L 85,45 M 83,53 C 79,46 69,44 61,47 C 50,51 45,62 48,72 C 51,82 63,84 72,77 C 79,72 81,62 83,53"/>
+    <path id="envelope-shape" d="M 100,30 H 51.732321686 A 28.530188679,28.530188679 0 0 1 52.530188679,36.700000000 V 38.668400000 A 28.530188679,28.530188679 0 0 1 12,64.552210887 V 100 C 12,106.627 17.373,112 24,112 H 100 C 106.627,112 112,106.627 112,100 V 42 C 112,35.373 106.627,30 100,30 Z"/>
+    <path id="at-shape" d="M 104.556390977,64 A 40.556390977,40.556390977 0 1 0 23.443609023,64 A 40.556390977,40.556390977 0 1 0 104.556390977,64 Z M 82,64 A 18,18 0 1 0 46,64 A 18,18 0 1 0 82,64 Z M 82,51 V 68 C 82,74 88,77 94,75 C 100,73 104.556390977,69 104.556390977,64"/>
     <linearGradient id="paper" x1="0" y1="30" x2="0" y2="112" gradientUnits="userSpaceOnUse">
       <stop stop-color="#ffffff"/>
       <stop offset="0.55" stop-color="#f6f5f4"/>
@@ -25,26 +25,47 @@
       <stop stop-color="#515866"/>
       <stop offset="1" stop-color="#333b49"/>
     </linearGradient>
+    <!-- True offset of the two circular faces; keeps all paper layers out of the transparent gap. -->
+    <mask id="notch-clearance" maskUnits="userSpaceOnUse" x="-40" y="-40" width="240" height="240" style="mask-type:luminance">
+      <rect x="-40" y="-40" width="240" height="240" fill="white"/>
+      <g fill="black">
+        <circle cx="24" cy="36.700000000" r="28.130188679"/>
+        <circle cx="24" cy="38.668400000" r="28.130188679"/>
+        <rect x="-4.130188679" y="36.700000000" width="56.260377358" height="1.968400000"/>
+      </g>
+    </mask>
   </defs>
-  <g id="composition" inkscape:groupmode="layer" inkscape:label="Centered composition · 106%" transform="translate(-9.246000 -6.960000) scale(1.06)">
+  <g id="canvas-fit" inkscape:groupmode="layer" inkscape:label="Top-left fit · proportional" transform="translate(-3.592698149284 -4.314585663263) scale(1.037194703994)">
+  <g id="composition" inkscape:groupmode="layer" inkscape:label="Centered composition · 106%" transform="translate(5.806000 -6.960000) scale(1.06)">
+  <g id="paper-fit" mask="url(#notch-clearance)">
   <g id="paper-edge" inkscape:groupmode="layer" inkscape:label="01 · Paper thickness">
     <use xlink:href="#envelope-shape" fill="url(#paper-profile)" transform="translate(0 4)"/>
   </g>
   <g id="envelope" inkscape:groupmode="layer" inkscape:label="02 · White envelope">
     <use xlink:href="#envelope-shape" fill="url(#paper)" stroke="#c6cad2" stroke-width="0.8"/>
-    <path id="lower-left-fold" transform="translate(0 -3)" d="M 17,104 L 34,88" fill="none" stroke="#d8dbe1" stroke-width="1.2" stroke-linecap="round"/>
-    <path id="lower-right-fold" transform="translate(0 -3)" d="M 107,104 L 92,90" fill="none" stroke="#d1d5dc" stroke-width="1.2" stroke-linecap="round"/>
-    <path id="top-fold" transform="translate(0 -6)" d="M 24,36.5 H 66 C 68,36.5 69.5,38 69.5,40 V 43 C 69.5,58 80,68.5 91,71 C 79,78 73,82 64,82 C 49,82 36,71 26,59 L 13,47 C 13.5,41 18,36.5 24,36.5 Z" fill="#ffffff"/>
+    <g id="left-fold-relief" aria-label="Subtle raised paper fold">
+      <path id="left-fold-shadow" d="M 17,104 L 34,88" transform="translate(0 -2.2)" fill="none" stroke="#dce1e7" stroke-opacity="0.65" stroke-width="0.55" stroke-linecap="round"/>
+    <path id="lower-left-fold" transform="translate(0 -3)" d="M 17,104 L 34,88" fill="none" stroke="#ccd1d9" stroke-width="1.2" stroke-linecap="round"/>
+      <path id="left-fold-light" d="M 17,104 L 34,88" transform="translate(0 -3.55)" fill="none" stroke="#ffffff" stroke-opacity="0.88" stroke-width="0.65" stroke-linecap="round"/>
+    </g>
+    <g id="right-fold-relief" aria-label="Subtle raised paper fold">
+      <path id="right-fold-shadow" d="M 107,104 L 92,90" transform="translate(0 -2.2)" fill="none" stroke="#dce1e7" stroke-opacity="0.65" stroke-width="0.55" stroke-linecap="round"/>
+    <path id="lower-right-fold" transform="translate(0 -3)" d="M 107,104 L 92,90" fill="none" stroke="#c5ccd5" stroke-width="1.2" stroke-linecap="round"/>
+      <path id="right-fold-light" d="M 107,104 L 92,90" transform="translate(0 -3.55)" fill="none" stroke="#ffffff" stroke-opacity="0.88" stroke-width="0.65" stroke-linecap="round"/>
+    </g>
+    <path id="top-fold" transform="translate(0 -6)" d="M 100,36.5 H 52.360392359 A 29.030188679,29.030188679 0 0 1 53.030188679,42.700000000 V 44.668400000 A 29.030188679,29.030188679 0 0 1 33,72.268252441 C 45,78 51,82 60,82 C 75,82 88,71 98,59 L 111,47 C 110.5,41 106,36.5 100,36.5 Z" fill="#ffffff"/>
     <path id="lower-edge-light" d="M 23,110.5 H 100 C 104.5,110.5 108.5,107.5 110,103.5" fill="none" stroke="#ffffff" stroke-opacity="0.66" stroke-width="1" stroke-linecap="round"/>
   </g>
   <g id="smile" transform="translate(0 -6)" inkscape:groupmode="layer" inkscape:label="03 · Smiling fold" fill="none" stroke-linecap="round">
-    <path d="M 27,60.5 C 40,75.5 51,83.5 64,83.5 C 71,83.5 77,81.5 82,78.5" stroke="#ffffff" stroke-width="5.2"/>
-    <path d="M 27,59 C 40,74 51,82 64,82 C 71,82 77,80 82,77" stroke="url(#smile-color)" stroke-width="4.8"/>
+    <path d="M 97 60.5 C 84 75.5 73 83.5 60 83.5 C 53 83.5 47 81.5 42 78.5" stroke="#ffffff" stroke-width="5.2"/>
+    <path d="M 97 59 C 84 74 73 82 60 82 C 53 82 47 80 42 77" stroke="url(#smile-color)" stroke-width="4.8"/>
   </g>
-  <g id="blue-at" inkscape:groupmode="layer" inkscape:label="04 · Blue at-sign" transform="translate(65.952 5.512) scale(0.532 0.492)" fill="none" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
-    <use xlink:href="#at-shape" stroke="#1c71d8" transform="translate(0 4)"/>
+  </g>
+  <g id="blue-at" inkscape:groupmode="layer" inkscape:label="04 · Blue at-sign" transform="translate(-10.048 2.652) scale(0.532)" fill="none" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <use xlink:href="#at-shape" stroke="#1c71d8" transform="translate(0 3.7)"/>
     <use xlink:href="#at-shape" stroke="url(#blue)"/>
-    <path d="M 21.1,59 C 22.6,36 41,19 64,19 C 81,19 96,29 103,43" stroke="#b9dcff" stroke-width="1.5" stroke-opacity="0.65" transform="translate(0 -6.1)"/>
+    <path id="at-edge-light" d="M 17.343609023,64 C 17.343609023,62.303525751 17.431896023,60.607048359 17.608216963,58.919273442 C 17.784537902,57.231498524 18.048897192,55.552420734 18.400502209,53.89083472 C 18.752107225,52.229248707 19.190966086,50.585151802 19.71565162,48.967489342 C 20.240337155,47.349826881 20.850859873,45.758600234 21.545016832,44.202916222 C 22.239173792,42.64723221 23.016976152,41.12709702 23.875280862,39.651722717 C 24.733585573,38.176348413 25.672402513,36.745746082 26.68748887,35.369103221 C 27.702575227,33.992460359 28.793937751,32.669792314 29.956107491,31.410062827 C 31.118277231,30.15033334 32.351256295,28.95356074 33.648281937,27.828230957 C 34.945307578,26.702901174 36.306376302,25.649033757 37.723441351,24.674350903 C 39.1405064,23.699668049 40.613558403,22.804188519 42.133363177,21.994581486 C 43.653167951,21.184974453 45.21971071,20.4612559 46.822751818,19.828779579 C 48.425792926,19.196303259 50.065313324,18.655080664 51.730323156,18.208942624 C 53.395332987,17.762804584 55.085810599,17.411756902 56.790323082,17.157976909 C 58.494835565,16.904196916 60.213360667,16.747684188 61.934353727,16.688922059 C 63.655346787,16.630159929 65.378787007,16.669141949 67.093342766,16.804709537 C 68.807898524,16.940277125 70.513552323,17.172418718 72.19947437,17.498470077 C 73.885396416,17.824521436 75.551573908,18.244467379 77.18790717,18.754340246 C 78.824240432,19.264213113 80.430722125,19.863995979 81.998134128,20.548660491 C 83.565546131,21.233325002 85.093886616,22.002854494 86.574887451,22.851413765 C 88.055888287,23.699973037 89.489552484,24.627547549 90.868552051,25.627730944 C 92.247551618,26.627914338 93.571893125,27.700695679 94.835115358,28.839289697 C 96.09833759,29.977883716 97.300448964,31.182283971 98.435740847,32.445457161 C 99.57103273,33.708630351 100.639513487,35.030574727 101.636099358,36.404070212 C 102.632685229,37.777565697 103.55738271,39.202614715 104.405619835,40.671804512 C 103.55738271,39.202614715 102.62518747,37.781911027 101.615490158,36.419181503 C 100.605792846,35.056451978 99.51860942,33.751711948 98.361658522,32.513341105 C 97.204707625,31.274970262 95.978008433,30.102978658 94.690276919,29.004446283 C 93.402545405,27.905913908 92.053802019,26.880844874 90.653460888,25.93491296 C 89.253119756,24.988981047 87.801200559,24.122184496 86.307512665,23.338773646 C 84.813824771,22.555362796 83.278385223,21.855330806 81.711121554,21.24157014 C 80.143857884,20.627809474 78.544783051,20.100309592 76.923716601,19.660737027 C 75.30265015,19.221164461 73.65960011,18.869506764 72.00412017,18.606378799 C 70.348640229,18.343250835 68.680733349,18.168640199 67.009605171,18.082298338 C 65.338476994,17.995956477 63.664125995,17.997872874 61.995399891,18.087109079 C 60.326673787,18.176345285 58.663567772,18.352894151 57.014620552,18.615260973 C 55.365673333,18.877627795 53.730878474,19.225809713 52.118551723,19.657831364 C 50.506224973,20.089853014 48.916360136,20.605716058 47.357146543,21.202973335 C 45.797932951,21.800230612 44.269366459,22.478887816 42.779589159,23.235970047 C 41.289811858,23.993052278 39.838823159,24.828568129 38.434754635,25.738906463 C 37.030686111,26.649244797 35.673541699,27.634415483 34.371417998,28.690030955 C 33.069294296,29.745646428 31.82220007,30.871715947 30.638101626,32.06293018 C 29.454003181,33.254144414 28.332913694,34.510510129 27.282503875,35.825674292 C 26.232094056,37.140838455 25.252380397,38.514803716 24.35051416,39.940101361 C 23.448647923,41.365399006 22.62464729,42.842026437 21.884882253,44.36139807 C 21.145117215,45.880769704 20.489605697,47.442877221 19.92366368,49.038099921 C 19.357721664,50.633322622 18.881364803,52.26164672 18.498601356,53.912582778 C 18.115837909,55.563518836 17.826679459,57.23704856 17.633620699,58.922055603 C 17.440561939,60.607062646 17.343609023,62.303525751 17.343609023,64 Z" fill="#b9dcff" fill-opacity="0.65" stroke="none"/>
+  </g>
   </g>
   </g>
 </svg>
