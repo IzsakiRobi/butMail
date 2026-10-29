@@ -87,7 +87,9 @@ namespace ButMail {
         }
 
         public void show_menu (Gtk.Widget anchor, Folder folder, double x, double y) {
-            if (context_menu != null) { context_menu.popdown (); }
+            close_menu ();
+            Graphene.Point position;
+            if (!anchor.compute_point (this, Graphene.Point () { x = (float) x, y = (float) y }, out position)) { return; }
             var group = new SimpleActionGroup ();
             var create = new SimpleAction ("create", null);
             create.set_enabled (folder.can_create && folder.role != FolderRole.STARRED && !folder.is_in_trash ());
@@ -107,7 +109,6 @@ namespace ButMail {
             empty.set_enabled (operations.can_empty_trash (folder));
             empty.activate.connect (() => operations.request_empty_trash (folder, this));
             group.add_action (empty);
-            insert_action_group ("folder-menu", group);
             var menu = new Menu ();
             menu.append (folder.is_account ? "New Folder…" : "New Subfolder…", "folder-menu.create");
             if (!folder.is_account) {
@@ -116,14 +117,19 @@ namespace ButMail {
             }
             if (folder.role == FolderRole.TRASH) { menu.append ("Empty Trash…", "folder-menu.empty"); }
             var popover = new Gtk.PopoverMenu.from_model (menu);
-            popover.set_parent (anchor);
-            popover.pointing_to = Gdk.Rectangle () { x = (int) x, y = (int) y, width = 1, height = 1 };
-            popover.closed.connect (() => {
-                if (popover.get_parent () != null) { popover.unparent (); }
-                if (context_menu == popover) { context_menu = null; }
-            });
+            popover.insert_action_group ("folder-menu", group);
+            popover.set_parent (this);
+            popover.pointing_to = Gdk.Rectangle () { x = (int) position.x, y = (int) position.y, width = 1, height = 1 };
             context_menu = popover;
             popover.popup ();
+        }
+
+        private void close_menu () {
+            if (context_menu == null) { return; }
+            var popover = context_menu;
+            context_menu = null;
+            popover.popdown ();
+            popover.unparent ();
         }
 
         private void edit_name (Folder parent, Folder? existing) {
@@ -148,7 +154,7 @@ namespace ButMail {
         protected override void dispose () {
             if (changing_handler != 0) { data.disconnect (changing_handler); changing_handler = 0; }
             if (changed_handler != 0) { data.disconnect (changed_handler); changed_handler = 0; }
-            if (context_menu != null && context_menu.get_parent () != null) { context_menu.unparent (); }
+            close_menu ();
             base.dispose ();
         }
     }

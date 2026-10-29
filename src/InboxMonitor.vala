@@ -110,16 +110,16 @@ namespace ButMail {
                 inbox.ready = true;
                 inbox.unread = unread.size ();
                 update_badge ();
-                yield backend.update_inbox_view (inbox.model);
+                yield backend.update_folder_view (inbox.model);
                 inbox.model.unread = inbox.unread;
             } while (inbox.dirty && !stopped);
             inbox.scanning = false;
         }
 
-        private void stage (Folder model, string[] uids, bool hidden) {
+        private void stage (Folder model, GenericArray<string> uids, bool hidden) {
             var inbox = inboxes.lookup (model.id);
             if (inbox == null || stopped) { return; }
-            foreach (var uid in uids) {
+            foreach (var uid in uids.data) {
                 if (hidden) { inbox.hidden.insert (uid, true); }
                 else { inbox.hidden.remove (uid); }
             }

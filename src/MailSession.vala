@@ -19,6 +19,14 @@
  */
 
 namespace ButMail {
+    internal int64 mail_step (string stage, int64 started) {
+        int64 now = get_monotonic_time ();
+        if (Environment.get_variable ("BUTMAIL_TIMING") != null) {
+            stderr.printf ("Mail timing: %s %.3f s\n", stage, (now - started) / 1000000.0);
+        }
+        return now;
+    }
+
     public class MailSession : Camel.Session {
         public E.SourceRegistry registry { get; private set; }
         private E.CredentialsPrompter credentials_prompter;
@@ -51,6 +59,7 @@ namespace ButMail {
         /* ----- EDS Authentication ----- */
         public override bool authenticate_sync (Camel.Service service, string? mechanism, GLib.Cancellable? cancellable = null) throws GLib.Error {
 
+            int64 timing = get_monotonic_time ();
             Camel.ServiceAuthType? authtype = null;
             bool try_empty_password = false;
             var result = Camel.AuthenticationResult.REJECTED;
@@ -92,12 +101,37 @@ namespace ButMail {
             }
 
             if (result == Camel.AuthenticationResult.REJECTED) {
+                var collection = registry.find_extension (source, E.SOURCE_EXTENSION_GOA);
+                if (collection != null) {
+                    unowned var goa = (E.SourceGoa) collection.get_extension (E.SOURCE_EXTENSION_GOA);
+                    try {
+                        var password = service.get_password ();
+                        if (string_is_empty (password) && !string_is_empty (goa.account_id)) {
+                            password = ((Application) GLib.Application.get_default ()).online_accounts.get_password_sync (
+                                goa.account_id, service is Camel.Transport, cancellable);
+                        }
+                        if (!string_is_empty (password)) {
+                            service.set_password (password);
+                            result = service.authenticate_sync (mechanism, cancellable);
+                            mail_step ("GOA password and server authentication", timing);
+                        }
+                    } catch (Error error) {
+                        if (error is IOError.CANCELLED) { throw error; }
+                    }
+                }
+            }
 
-                return credentials_prompter.loop_prompt_sync (source, E.CredentialsPrompterPromptFlags.ALLOW_SOURCE_SAVE, (prompter, source, credentials, out out_authenticated, cancellable) => try_credentials_sync (prompter, source, credentials, out out_authenticated, cancellable, service, mechanism), cancellable);
+            if (result == Camel.AuthenticationResult.REJECTED) {
+
+                bool accepted = credentials_prompter.loop_prompt_sync (source, E.CredentialsPrompterPromptFlags.ALLOW_SOURCE_SAVE, (prompter, source, credentials, out out_authenticated, cancellable) => try_credentials_sync (prompter, source, credentials, out out_authenticated, cancellable, service, mechanism), cancellable);
+                mail_step ("authentication", timing);
+                return accepted;
             } else {
                 return (result == Camel.AuthenticationResult.ACCEPTED);
             }
         }
+
+        private static bool string_is_empty (string? value) { return value == null || value == ""; }
 
         public override bool get_oauth2_access_token_sync (Camel.Service service, out string? access_token, out int expires_in, Cancellable? cancellable = null) throws GLib.Error {
             GLib.Error? local_error = null;

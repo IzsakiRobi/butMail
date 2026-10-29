@@ -58,6 +58,23 @@ namespace ButMail {
             changed ();
         }
 
+        /* ----- Mail Credentials ----- */
+        public string? get_password_sync (string id, bool smtp, Cancellable? cancellable) throws Error {
+            if (manager == null) { return null; }
+            foreach (var item in manager.get_objects ()) {
+                var account = item.get_interface ("org.gnome.OnlineAccounts.Account") as DBusProxy;
+                var password = item.get_interface ("org.gnome.OnlineAccounts.PasswordBased") as DBusProxy;
+                var account_id = account != null ? account.get_cached_property ("Id") : null;
+                if (account_id == null || account_id.get_string () != id || password == null) { continue; }
+                var result = password.call_sync ("GetPassword", new Variant ("(s)", smtp ? "smtp-password" : "imap-password"),
+                    DBusCallFlags.NONE, -1, cancellable);
+                string value;
+                result.get ("(s)", out value);
+                return value;
+            }
+            return null;
+        }
+
         public static async void open_settings (Gtk.Widget parent) {
             try {
                 var connection = yield Bus.get (BusType.SESSION);

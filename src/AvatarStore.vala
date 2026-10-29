@@ -196,6 +196,10 @@ namespace ButMail {
                     }
                 }
             } catch (Error error) { }
+            if (entry.texture != null && (key.has_prefix ("logodev-") ||
+                key.has_prefix ("anylogo-") || key.has_prefix ("companyenrich-"))) {
+                entry.texture = inset_logo (entry.texture);
+            }
             entry.expires = get_real_time () / 1000000 + (email != null ? 300 : entry.texture == null ? 3600 : 86400);
             entry.ready = true;
             return sufficient_size (entry.texture, minimum_size);
@@ -203,6 +207,40 @@ namespace ButMail {
 
         private Gdk.Texture? sufficient_size (Gdk.Texture? texture, int minimum_size) {
             return texture != null && texture.width >= minimum_size && texture.height >= minimum_size ? texture : null;
+        }
+
+        /* ----- Company Logo Insets ----- */
+        private Gdk.Texture inset_logo (Gdk.Texture texture) {
+            var image = Gdk.pixbuf_get_from_texture (texture);
+            if (image == null || has_filled_background (image)) { return texture; }
+            int inset = int.max (1, (image.width * 2 + 21) / 42);
+            var canvas = new Gdk.Pixbuf (Gdk.Colorspace.RGB, true, 8, image.width, image.height);
+            canvas.fill (0xffffffffu);
+            int width = image.width - 2 * inset;
+            int height = image.height - 2 * inset;
+            image.composite (canvas, inset, inset, width, height, inset, inset,
+                (double) width / image.width, (double) height / image.height, Gdk.InterpType.BILINEAR, 255);
+            return Gdk.Texture.for_pixbuf (canvas);
+        }
+
+        private bool has_filled_background (Gdk.Pixbuf image) {
+            unowned uint8[] pixels = image.get_pixels ();
+            int filled = 0;
+            int edge_x = int.max (1, image.width * 3 / 100);
+            int edge_y = int.max (1, image.height * 3 / 100);
+            for (int side = 0; side < 4; side++) {
+                for (int step = 1; step <= 3; step++) {
+                    int x = side < 2 ? (image.width - 1) * step / 4 :
+                        side == 2 ? edge_x : image.width - 1 - edge_x;
+                    int y = side < 2 ? (side == 0 ? edge_y : image.height - 1 - edge_y) :
+                        (image.height - 1) * step / 4;
+                    int offset = y * image.rowstride + x * image.n_channels;
+                    bool opaque = !image.has_alpha || pixels[offset + 3] >= 250;
+                    bool colored = pixels[offset] < 240 || pixels[offset + 1] < 240 || pixels[offset + 2] < 240;
+                    if (opaque && colored && ++filled >= 8) { return true; }
+                }
+            }
+            return false;
         }
 
         private async Gdk.Texture? download (string key, string url, Cancellable job) throws Error {
@@ -273,6 +311,19 @@ namespace ButMail {
             var pixbuf = loader.get_pixbuf ();
             if (!complete || !valid || pixbuf == null ||
                 (reject_placeholder && is_generated_monogram (pixbuf))) { return null; }
+            if (strict && pixbuf.has_alpha) {
+                unowned uint8[] pixels = pixbuf.get_pixels ();
+                bool visible = false;
+                for (int y = 0; y < pixbuf.height && !visible; y++) {
+                    for (int x = 0; x < pixbuf.width; x++) {
+                        if (pixels[y * pixbuf.rowstride + x * pixbuf.n_channels + 3] > 0) {
+                            visible = true;
+                            break;
+                        }
+                    }
+                }
+                if (!visible) { return null; }
+            }
             return Gdk.Texture.for_pixbuf (pixbuf);
         }
     }

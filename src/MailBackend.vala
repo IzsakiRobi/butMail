@@ -8,7 +8,7 @@ namespace ButMail {
         public signal void failed (string message);
         public signal void inbox_ready (Folder model, Camel.Folder folder);
         public signal void folder_updated (Folder model);
-        public signal void messages_staged (Folder model, string[] uids, bool hidden);
+        public signal void messages_staged (Folder model, GenericArray<string> uids, bool hidden);
         public bool online { get; private set; }
         public bool is_connecting { get; private set; default = true; }
         private bool discovering = true;
@@ -65,7 +65,9 @@ namespace ButMail {
         /* ----- Account and Folder Discovery ----- */
         public async void start () throws Error {
             try {
+                int64 timing = get_monotonic_time ();
                 yield session.start (lifetime);
+                timing = mail_step ("registry", timing);
                 var accounts = new GenericArray<Folder> ();
                 Folder? preferred = null;
                 foreach (var source in session.registry.list_enabled (E.SOURCE_EXTENSION_MAIL_ACCOUNT)) {
@@ -99,17 +101,22 @@ namespace ButMail {
                     }
                 }
                 if (accounts.length == 0) { throw new IOError.NOT_FOUND ("Evolution Data Server has not provided any enabled Online Accounts mail sources."); }
+                timing = mail_step ("local summaries", timing);
                 folders_loaded (accounts.data, preferred);
                 bool available = preferred != null;
                 foreach (var root in accounts.data) {
                     var store = stores.lookup (root.id);
                     try {
                         if (store is Camel.OfflineStore) { yield ((Camel.OfflineStore) store).set_online (true, Priority.DEFAULT, lifetime); }
+                        timing = mail_step ("online", timing);
                         yield store.connect (Priority.DEFAULT, lifetime);
+                        timing = mail_step ("connect", timing);
                         yield configure_special_folders (store);
-                            connected.insert (root.id, true);
+                        timing = mail_step ("special folders", timing);
+                        connected.insert (root.id, true);
                         account_ready (root.id);
                         var info = yield store.get_folder_info (null, Camel.StoreGetFolderInfoFlags.RECURSIVE, Priority.DEFAULT, lifetime);
+                        timing = mail_step ("folder discovery", timing);
                         var incoming = new Folder (root.name, root.icon_name, root.account, true, FolderRole.REGULAR, root.id);
                         add_folders (info, incoming);
                         var children = new GenericArray<Folder> ();
@@ -213,6 +220,7 @@ namespace ButMail {
         /* ----- Conversation Loading ----- */
         public async void load_folder (Folder model, Cancellable cancellable, bool refresh = false) throws Error {
             if (!model.selectable || (!refresh && opened.contains (model.id))) { return; }
+            int64 timing = get_monotonic_time ();
             model.loading = true;
             model.error_message = null;
             try {
@@ -227,9 +235,12 @@ namespace ButMail {
                 var folder = opened.lookup (model.id);
                 if (folder == null) { folder = yield stores.lookup (root_id (model)).get_folder (model.remote_name, Camel.StoreGetFolderFlags.NONE, Priority.DEFAULT, cancellable); }
                 if (folder == null) { throw new IOError.NOT_FOUND ("The selected folder is no longer available."); }
+                timing = mail_step ("folder open and connection wait", timing);
                 yield folder.refresh_info (Priority.DEFAULT, cancellable);
+                timing = mail_step ("folder refresh", timing);
                 var batch = yield read_summary (folder, cancellable);
                 apply_summary (model, folder, batch);
+                mail_step ("summary apply", timing);
                 cache_account (model);
                 if (model.role == FolderRole.INBOX) { inbox_ready (model, folder); }
             } catch (Error error) {
@@ -382,7 +393,7 @@ namespace ButMail {
             refreshing_inboxes = false;
         }
 
-        public async void update_inbox_view (Folder model) {
+        public async void update_folder_view (Folder model) {
             var folder = opened.lookup (model.id);
             if (folder == null || model.loading || lifetime.is_cancelled ()) { return; }
             try {
@@ -390,7 +401,7 @@ namespace ButMail {
                 apply_summary (model, folder, batch);
                 cache_account (model);
             } catch (Error error) {
-                if (!(error is IOError.CANCELLED)) { debug ("Inbox view refresh failed: %s", error.message); }
+                if (!(error is IOError.CANCELLED)) { debug ("Local folder view update failed: %s", error.message); }
             }
         }
 
@@ -590,7 +601,9 @@ namespace ButMail {
                 }
             }
             folder.thaw ();
+            int64 timing = get_monotonic_time ();
             yield folder.synchronize (false, Priority.DEFAULT, lifetime);
+            mail_step ("flag synchronization", timing);
             update_flags (model, conversations);
         }
 
@@ -604,13 +617,15 @@ namespace ButMail {
                     if (hide) { hidden_messages.insert (key, true); } else { hidden_messages.remove (key); }
                 }
             }
-            messages_staged (drag.source, uids.data, hide);
+            messages_staged (drag.source, uids, hide);
         }
 
         public async UndoOperation? move (ConversationDrag drag, Folder destination) throws Error {
             if (root_id (drag.source) != root_id (destination) || drag.source == destination) { throw new IOError.INVALID_ARGUMENT ("Choose another folder in the same account."); }
+            int64 timing = get_monotonic_time ();
             var source = yield open_folder (drag.source);
             var target = yield open_folder (destination);
+            timing = mail_step ("move preparation", timing);
             var uids = new GenericArray<string> ();
             foreach (var conversation in drag.conversations) {
                 var members = threads.lookup (conversation);
@@ -619,10 +634,10 @@ namespace ButMail {
             }
             GenericArray<weak string>? transferred;
             if (!yield source.transfer_messages_to (uids, target, true, Priority.DEFAULT, lifetime, out transferred)) { throw new IOError.FAILED ("The server could not move these messages."); }
-            try {
-                yield load_folder (drag.source, lifetime, true);
-                if (opened.contains (destination.id)) { yield load_folder (destination, lifetime, true); }
-            } catch (Error error) { failed ("Messages moved; the view could not be refreshed"); }
+            timing = mail_step ("IMAP move", timing);
+            yield update_folder_view (drag.source);
+            yield update_folder_view (destination);
+            mail_step ("move local view update", timing);
             foreach (var conversation in drag.conversations) { threads.remove (conversation); origins.remove (conversation); }
             if (transferred == null || transferred.length != uids.length) { return null; }
             var undo_uids = new GenericArray<string> ();
@@ -638,8 +653,8 @@ namespace ButMail {
             var source = yield open_folder (destination);
             var target = yield open_folder (original);
             yield source.transfer_messages_to (uids, target, true, Priority.DEFAULT, lifetime, null);
-            yield load_folder (original, lifetime, true);
-            yield load_folder (destination, lifetime, true);
+            yield update_folder_view (original);
+            yield update_folder_view (destination);
         }
 
         public async void empty_trash (Folder model) throws Error {
@@ -687,6 +702,7 @@ namespace ButMail {
         /* ----- SMTP Submission ----- */
         public async bool send (Folder account, string to, string cc, string bcc, string subject, string html, GenericArray<File> files, string? reply_id, Cancellable cancellable, GenericArray<Camel.MimePart>? preserved = null) throws Error {
             if (subject.contains ("\r") || subject.contains ("\n")) { throw new IOError.INVALID_ARGUMENT ("The subject must be a single line."); }
+            int64 timing = get_monotonic_time ();
             yield wait_for_connection (account, cancellable);
             var source = session.registry.ref_source (root_id (account));
             if (source == null) { throw new IOError.NOT_FOUND ("The sending account is no longer available."); }
@@ -708,9 +724,12 @@ namespace ButMail {
             var mime = prepared.mime;
             var from = prepared.from;
             var recipients = prepared.recipients;
+            timing = mail_step ("send preparation", timing);
             if (transport.connection_status != Camel.ServiceConnectionStatus.CONNECTED) { yield transport.connect (Priority.DEFAULT, cancellable); }
+            timing = mail_step ("SMTP connection", timing);
             bool saved;
             if (!yield transport.send_to (mime, from, recipients, Priority.DEFAULT, cancellable, out saved)) { throw new IOError.FAILED ("The outgoing server did not accept the message."); }
+            timing = mail_step ("SMTP submission", timing);
             var history = ((Application) GLib.Application.get_default ()).recipients;
             int64 now = get_real_time () / 1000000;
             history.remember_header (to, 100, now);
@@ -729,6 +748,7 @@ namespace ButMail {
                     saved = yield sent.append_message (mime, info, Priority.DEFAULT, null, null);
                 } catch (Error error) { debug ("Unable to save sent copy: %s", error.message); }
             }
+            mail_step ("sent copy", timing);
             return saved;
         }
 
