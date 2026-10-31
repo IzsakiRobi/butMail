@@ -193,6 +193,22 @@ namespace ButMail {
                 if (selection.get_selection ().is_empty ()) { return false; }
                 if ((key == Gdk.Key.Delete || key == Gdk.Key.KP_Delete) &&
                     (modifiers & Gtk.accelerator_get_default_mod_mask ()) == 0) {
+                    var actions = get_root () as ActionGroup;
+                    if (actions != null && actions.get_action_enabled ("trash")) {
+                        var selected = selection.get_selection ();
+                        uint next = selected.get_minimum ();
+                        while (next < visible_items.get_n_items () && selected.contains (next)) { next++; }
+                        if (next == visible_items.get_n_items ()) {
+                            next = selected.get_minimum ();
+                            while (next > 0 && selected.contains (next)) { next--; }
+                        }
+                        if (!selected.contains (next)) {
+                            var scroll = new Gtk.ScrollInfo ();
+                            scroll.set_enable_horizontal (false);
+                            scroll.set_enable_vertical (false);
+                            list.scroll_to (next, Gtk.ListScrollFlags.FOCUS, (owned) scroll);
+                        }
+                    }
                     return list.activate_action_variant ("win.trash", null);
                 }
                 if (key != Gdk.Key.Menu && !(key == Gdk.Key.F10 && (modifiers & Gdk.ModifierType.SHIFT_MASK) != 0)) { return false; }
