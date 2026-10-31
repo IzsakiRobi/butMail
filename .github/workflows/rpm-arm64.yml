@@ -1,0 +1,70 @@
+name: ARM64 RPM
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rpm:
+    name: Fedora 45 aarch64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    container: registry.fedoraproject.org/fedora:45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install packaging tools
+        run: |
+          test "$(uname -m)" = aarch64
+          dnf -y install git rpm-build redhat-rpm-config dnf5-plugins cpio binutils
+
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: dnf -y builddep packaging/butMail.spec
+
+      - name: Build binary RPM
+        run: |
+          rpm_root="$RUNNER_TEMP/rpmbuild"
+          mkdir -p "$rpm_root/SOURCES" dist
+          version=$(rpmspec --query --srpm --queryformat '%{VERSION}' packaging/butMail.spec)
+          git archive --format=tar.gz --prefix="butMail-$version/" HEAD > "$rpm_root/SOURCES/butMail-$version.tar.gz"
+          rpmbuild -bb --define "_topdir $rpm_root" --define 'debug_package %{nil}' packaging/butMail.spec 2>&1 | tee "$RUNNER_TEMP/rpm-build.log"
+          cp "$rpm_root"/RPMS/aarch64/butMail-*.aarch64.rpm dist/
+
+      - name: Verify and install package
+        run: |
+          package=$(find dist -maxdepth 1 -name '*.rpm' -print)
+          test "$(rpm -qp --queryformat '%{ARCH}' "$package")" = aarch64
+          rpm --checksig "$package"
+          dnf -y install "$PWD/$package"
+          readelf -h /usr/bin/io.github.IzsakiRobi.butMail | grep 'Machine:.*AArch64'
+          ldd /usr/bin/io.github.IzsakiRobi.butMail | tee "$RUNNER_TEMP/rpm-linkage.log"
+          if grep -q 'not found' "$RUNNER_TEMP/rpm-linkage.log"; then exit 1; fi
+          cd dist
+          sha256sum ./*.rpm > SHA256SUMS
+
+      - name: Upload package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: butMail-fedora45-aarch64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: arm64-build-logs
+          path: |
+            ${{ runner.temp }}/rpm-build.log
+            ${{ runner.temp }}/rpm-linkage.log
+          if-no-files-found: ignore
+          retention-days: 7
