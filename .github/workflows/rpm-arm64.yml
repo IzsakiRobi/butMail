@@ -34,7 +34,7 @@ jobs:
           rpm_root="$RUNNER_TEMP/rpmbuild"
           mkdir -p "$rpm_root/SOURCES" dist
           version=$(rpmspec --query --srpm --queryformat '%{VERSION}' packaging/butMail.spec)
-          git archive --format=tar.gz --prefix="butMail-$version/" HEAD > "$rpm_root/SOURCES/butMail-$version.tar.gz"
+          git -c safe.directory="$GITHUB_WORKSPACE" archive --format=tar.gz --prefix="butMail-$version/" HEAD > "$rpm_root/SOURCES/butMail-$version.tar.gz"
           rpmbuild -bb --define "_topdir $rpm_root" --define 'debug_package %{nil}' packaging/butMail.spec 2>&1 | tee "$RUNNER_TEMP/rpm-build.log"
           cp "$rpm_root"/RPMS/aarch64/butMail-*.aarch64.rpm dist/
 
