@@ -1,0 +1,14 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: butMail
+Source: https://github.com/IzsakiRobi/Elementary-Mail-Plus
+
+Files: *
+Copyright: elementary Mail contributors and the copyright holders named in each source file
+License: GPL-3+
+ See COPYING for the complete license text and individual source files for
+ additional copyright and license notices. Some files are LGPL-3.0-or-later.
+
+Files: data/icons/MailPlus/*
+Copyright: elementary icon theme contributors, see data/icons/MailPlus/COPYRIGHT
+License: GPL-3+
+ See COPYING for the full license text.

@@ -2,3 +2,9 @@
 build/
 _build/
 *.rpm
+
+*.deb
+*.ddeb
+*.flatpak
+*.buildinfo
+*.changes

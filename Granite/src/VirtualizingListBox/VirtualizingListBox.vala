@@ -1,0 +1,1131 @@
+// -*- Mode: vala; indent-tabs-mode: nil; tab-width: 4 -*-
+/*-
+ * Copyright (c) 2018 elementary LLC. (https://elementary.io)
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ *
+ * Authored by: David Hewitt <davidmhewitt@gmail.com>
+ */
+
+public class VirtualizingListBox : Gtk.Container, Gtk.Scrollable {
+    public delegate VirtualizingListBoxRow RowFactoryMethod (GLib.Object item, VirtualizingListBoxRow? old_widget);
+
+    public RowFactoryMethod factory_func;
+
+    public signal void row_activated (GLib.Object row);
+    public signal void row_selected (GLib.Object? row);
+    public signal void selected_rows_changed ();
+
+    private Mail.ConversationListStore? _model;
+    public Mail.ConversationListStore? model {
+        get {
+           return _model;
+        }
+        set {
+            if (_model != null) {
+                _model.items_changed.disconnect (on_items_changed);
+            }
+
+            _model = value;
+            _model.items_changed.connect (on_items_changed);
+            queue_resize ();
+        }
+    }
+
+    private Gtk.Adjustment? _vadjustment;
+    public Gtk.Adjustment? vadjustment {
+        set {
+            if (_vadjustment != null) {
+                _vadjustment.value_changed.disconnect (on_adjustment_value_changed);
+                _vadjustment.notify["page-size"].disconnect (on_adjustment_page_size_changed);
+            }
+
+            _vadjustment = value;
+            if (_vadjustment != null) {
+                _vadjustment.value_changed.connect (on_adjustment_value_changed);
+                _vadjustment.notify["page-size"].connect (on_adjustment_page_size_changed);
+                configure_adjustment ();
+            }
+        }
+        get {
+            return _vadjustment;
+        }
+    }
+
+    private int bin_y {
+        get {
+            int y = 0;
+            if (vadjustment != null) {
+                y = -(int)vadjustment.value; //vala-lint=space-before-paren
+            }
+
+            return y + (int)bin_y_diff;
+        }
+    }
+
+    private bool bin_window_full {
+        get {
+            int bin_height = 0;
+            if (get_realized ()) {
+                bin_height = bin_window.get_height ();
+            }
+
+            var widget_height = get_allocated_height ();
+            return (bin_y + bin_height > widget_height) || (shown_to - shown_from == model.get_n_items ());
+        }
+    }
+
+    public VirtualizingListBoxRow? selected_row_widget {
+        get {
+            var item = selected_row;
+
+            foreach (var child in current_widgets) {
+                if (child.model_item == item) {
+                    return (VirtualizingListBoxRow)child;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    public Gtk.Adjustment hadjustment { get; set; }
+    public Gtk.ScrollablePolicy hscroll_policy { get; set; }
+    public Gtk.ScrollablePolicy vscroll_policy { get; set; }
+    public bool activate_on_single_click { get; set; }
+    public Gtk.SelectionMode selection_mode { get; set; default = Gtk.SelectionMode.SINGLE; }
+    private double bin_y_diff { get; private set; }
+    public GLib.Object? selected_row { get; private set; }
+
+    private Gee.ArrayList<VirtualizingListBoxRow> current_widgets = new Gee.ArrayList<VirtualizingListBoxRow> ();
+    private Gee.ArrayList<VirtualizingListBoxRow> recycled_widgets = new Gee.ArrayList<VirtualizingListBoxRow> ();
+    private Gdk.Window bin_window;
+    private uint shown_to;
+    private uint shown_from;
+    private bool block;
+    private int last_valid_widget_height = 1;
+    private VirtualizingListBoxRow? active_row;
+    private Gtk.GestureMultiPress multipress;
+    private Gtk.EventControllerKey key_controller;
+    private GLib.Object? selection_anchor;
+    private GLib.Object? cursor_item;
+    private GLib.Object? active_item;
+    private GLib.Object? pressed_item;
+    private int selection_count;
+    private int selection_index = -1;
+
+    static construct {
+        set_css_name ("list");
+    }
+
+    construct {
+        can_focus = true;
+        multipress = new Gtk.GestureMultiPress (this);
+        multipress.set_propagation_phase (Gtk.PropagationPhase.BUBBLE);
+        multipress.touch_only = false;
+        multipress.button = Gdk.BUTTON_PRIMARY;
+        multipress.pressed.connect (on_multipress_pressed);
+        multipress.released.connect (on_multipress_released);
+        multipress.cancel.connect (clear_active_row);
+        key_controller = new Gtk.EventControllerKey (this) {
+            propagation_phase = Gtk.PropagationPhase.CAPTURE
+        };
+        key_controller.key_pressed.connect (on_key_pressed);
+    }
+
+    public override void realize () {
+        set_realized (true);
+        Gtk.Allocation allocation;
+        get_allocation (out allocation);
+
+        var attr = Gdk.WindowAttr ();
+        attr.x = allocation.x;
+        attr.y = allocation.y;
+        attr.width = allocation.width;
+        attr.height = allocation.height;
+        attr.window_type = Gdk.WindowType.CHILD;
+        attr.event_mask = Gdk.EventMask.ALL_EVENTS_MASK;
+        attr.wclass = Gdk.WindowWindowClass.INPUT_OUTPUT;
+        attr.visual = get_visual ();
+
+        Gdk.WindowAttributesType attr_types;
+        attr_types = Gdk.WindowAttributesType.X | Gdk.WindowAttributesType.Y | Gdk.WindowAttributesType.VISUAL;
+
+        var window = new Gdk.Window (get_parent_window (), attr, attr_types);
+
+        set_window (window);
+        register_window (window);
+
+        attr.height = 1;
+        bin_window = new Gdk.Window (window, attr, attr_types);
+        register_window (bin_window);
+        bin_window.show ();
+    }
+
+    public override void size_allocate (Gtk.Allocation allocation) {
+        bool height_changed = allocation.height != get_allocated_height ();
+        bool width_changed = allocation.width != get_allocated_width ();
+        set_allocation (allocation);
+        position_children ();
+
+        if (get_realized ()) {
+            get_window ().move_resize (allocation.x,
+                                            allocation.y,
+                                            allocation.width,
+                                            allocation.height);
+            update_bin_window ();
+        }
+
+        if (vadjustment != null && height_changed || width_changed) {
+            configure_adjustment ();
+        }
+
+        if (height_changed || width_changed) {
+            ensure_visible_widgets ();
+        }
+    }
+
+    public override void map () {
+        base.map ();
+        ensure_visible_widgets ();
+    }
+
+    public override void remove (Gtk.Widget w) {
+        assert (w.get_parent () == this);
+    }
+
+    public override void forall_internal (bool include_internals, Gtk.Callback callback) {
+        foreach (var child in current_widgets) {
+            callback (child);
+        }
+    }
+
+    public override GLib.Type child_type () {
+        return typeof (VirtualizingListBoxRow);
+    }
+
+    private VirtualizingListBoxRow? get_widget (uint index) {
+        var item = model.get_object (index);
+        if (item == null) {
+            return null;
+        }
+
+        VirtualizingListBoxRow? old_widget = null;
+        foreach (var recycled in recycled_widgets) {
+            if (recycled.model_item == item) {
+                old_widget = recycled;
+                break;
+            }
+        }
+        if (old_widget == null && recycled_widgets.size > 0) {
+            old_widget = recycled_widgets[recycled_widgets.size - 1];
+        }
+        if (old_widget != null) {
+            recycled_widgets.remove (old_widget);
+        }
+
+        VirtualizingListBoxRow new_widget = factory_func (item, old_widget);
+        if (model.get_item_selected (item)) {
+            new_widget.set_state_flags (Gtk.StateFlags.SELECTED, false);
+        } else {
+            new_widget.unset_state_flags (Gtk.StateFlags.SELECTED);
+        }
+
+        new_widget.model_item = item;
+        new_widget.show ();
+
+        return new_widget;
+    }
+
+    private void on_items_changed (uint position, uint removed, uint added) {
+        bool restore_focus = get_focus_child () != null;
+        if (restore_focus) {
+            grab_focus ();
+        }
+        reconcile_selection ();
+        refresh_items (position);
+        if (restore_focus) {
+            foreach (var row in current_widgets) {
+                if (row.model_item == cursor_item) {
+                    row.grab_focus ();
+                    break;
+                }
+            }
+        }
+    }
+
+    private void refresh_items (uint position) {
+        if (position >= shown_to && bin_window_full) {
+            if (vadjustment == null) {
+                queue_resize ();
+            } else {
+                configure_adjustment ();
+            }
+
+            return;
+        }
+
+        if (refresh_visible_widgets ()) {
+            update_bin_window ();
+            ensure_visible_widgets (true);
+            return;
+        }
+
+        remove_all_widgets ();
+        shown_to = shown_from;
+        update_bin_window ();
+        ensure_visible_widgets (true);
+
+        if (vadjustment == null) {
+            queue_resize ();
+        }
+    }
+
+    private bool refresh_visible_widgets () {
+        if (current_widgets.size == 0) {
+            return false;
+        }
+
+        shown_from = uint.min (shown_from, model.get_n_items ());
+        shown_to = uint.min (shown_to, model.get_n_items ());
+        var previous = current_widgets.to_array ();
+        var updated = new Gee.ArrayList<VirtualizingListBoxRow> ();
+        for (uint i = shown_from; i < shown_to; i++) {
+            var item = model.get_object (i);
+            if (item == null) {
+                continue;
+            }
+            VirtualizingListBoxRow? widget = null;
+            foreach (var existing in previous) {
+                if (existing.model_item == item) {
+                    widget = existing;
+                    break;
+                }
+            }
+            if (widget == null) {
+                widget = get_widget (i);
+                widget.set_parent_window (bin_window);
+                widget.set_parent (this);
+            } else {
+                factory_func (item, widget);
+            }
+            updated.add (widget);
+        }
+        foreach (var widget in previous) {
+            if (!updated.contains (widget)) {
+                remove_child_internal (widget);
+            }
+        }
+        current_widgets.clear ();
+        current_widgets.add_all (updated);
+        foreach (var widget in current_widgets) {
+            if (model.get_item_selected (widget.model_item)) {
+                widget.set_state_flags (Gtk.StateFlags.SELECTED, false);
+            } else {
+                widget.unset_state_flags (Gtk.StateFlags.SELECTED);
+            }
+        }
+        return true;
+    }
+
+    private inline int widget_y (int index) {
+        int y = 0;
+        for (int i = 0; i < index; i ++) {
+            y += get_widget_height (current_widgets[i]);
+        }
+
+        return y;
+    }
+
+    private int get_widget_height (Gtk.Widget w) {
+        int min;
+        w.get_preferred_height_for_width (get_allocated_width (), out min, null);
+        return min;
+    }
+
+    private void position_children () {
+        Gtk.Allocation allocation;
+        Gtk.Allocation child_allocation = {0};
+
+        get_allocation (out allocation);
+
+        int y = 0;
+        if (vadjustment != null) {
+            y = allocation.y;
+        }
+
+        child_allocation.x = 0;
+        if (allocation.width > 0) {
+            child_allocation.width = allocation.width;
+        } else {
+            child_allocation.width = 1;
+        }
+
+        foreach (var child in current_widgets) {
+            child.get_preferred_height_for_width (get_allocated_width (), out child_allocation.height, null);
+            child.get_preferred_width_for_height (child_allocation.height, out child_allocation.width, null);
+            child_allocation.width = int.max (child_allocation.width, get_allocated_width ());
+            child_allocation.y = y;
+            child.size_allocate (child_allocation);
+
+            y += child_allocation.height;
+        }
+    }
+
+    private void update_bin_window (int new_bin_height = -1) {
+        Gtk.Allocation allocation;
+        get_allocation (out allocation);
+
+        var h = (new_bin_height == -1 ? 0 : new_bin_height);
+
+        if (new_bin_height == -1) {
+            foreach (var w in current_widgets) {
+                h += get_widget_height (w);
+            }
+        }
+
+        if (h == 0) {
+            h = 1;
+        }
+
+        if (h != bin_window.get_height () || allocation.width != bin_window.get_width ()) {
+            bin_window.move_resize (0, bin_y, allocation.width, h);
+        } else {
+            bin_window.move (0, bin_y);
+        }
+    }
+
+    private void remove_all_widgets () {
+        foreach (var w in current_widgets) {
+            w.unparent ();
+        }
+
+        recycled_widgets.add_all (current_widgets);
+        current_widgets.clear ();
+    }
+
+    private void remove_child_internal (VirtualizingListBoxRow widget) {
+        current_widgets.remove (widget);
+        widget.set_state_flags (Gtk.StateFlags.NORMAL, true);
+        widget.unparent ();
+        recycled_widgets.add (widget);
+    }
+
+    private void on_adjustment_value_changed () {
+        ensure_visible_widgets ();
+    }
+
+    private void on_adjustment_page_size_changed () {
+        if (!get_mapped ()) {
+            return;
+        }
+
+        double max_value = vadjustment.upper - vadjustment.page_size;
+
+        if (vadjustment.value > max_value) {
+            set_value (max_value);
+        }
+
+        configure_adjustment ();
+    }
+
+    private void insert_child_internal (VirtualizingListBoxRow widget, int index) {
+        widget.set_parent_window (bin_window);
+        widget.set_parent (this);
+        current_widgets.insert (index, widget);
+    }
+
+    private bool remove_top_widgets (ref int bin_height) {
+        bool removed = false;
+        for (int i = 0; i < current_widgets.size; i++) {
+            var w = current_widgets[i];
+            int w_height = get_widget_height (w);
+            if (bin_y + widget_y (i) + w_height < 0) {
+                bin_y_diff += w_height;
+                bin_height -= w_height;
+                remove_child_internal (w);
+                shown_from++;
+                removed = true;
+            } else {
+                break;
+            }
+        }
+
+        return removed;
+    }
+
+    private bool insert_top_widgets (ref int bin_height) {
+        bool added = false;
+        while (shown_from > 0 && bin_y >= 0) {
+            shown_from--;
+            var new_widget = get_widget (shown_from);
+            if (new_widget == null) {
+                continue;
+            }
+
+            insert_child_internal (new_widget, 0);
+            var min = get_widget_height (new_widget);
+
+            bin_y_diff -= min;
+            bin_height += min;
+            added = true;
+        }
+
+        if (bin_y > 0) {
+            bin_y_diff = 0;
+            block = true;
+            set_value (0.0);
+            block = false;
+        }
+
+        return added;
+    }
+
+    private bool remove_bottom_widgets (ref int bin_height) {
+        for (int i = current_widgets.size - 1; i >= 0; i--) {
+            var w = current_widgets[i];
+
+            int widget_y = bin_y + widget_y (i);
+            if (widget_y > get_allocated_height ()) {
+                int w_height = get_widget_height (w);
+                remove_child_internal (w);
+                bin_height -= w_height;
+                shown_to--;
+            } else {
+                break;
+            }
+        }
+
+        return false;
+    }
+
+    private bool insert_bottom_widgets (ref int bin_height) {
+        bool added = false;
+        while (bin_y + bin_height <= get_allocated_height () && shown_to < model.get_n_items ()) {
+            var new_widget = get_widget (shown_to);
+            if (new_widget == null) {
+                shown_to++;
+                continue;
+            }
+
+            insert_child_internal (new_widget, current_widgets.size);
+
+            int min = get_widget_height (new_widget);
+            bin_height += min;
+            added = true;
+            shown_to ++;
+        }
+
+        return added;
+    }
+
+    private void ensure_visible_widgets (bool model_changed = false) {
+        if (!get_mapped () || model == null || block) {
+            return;
+        }
+
+        var widget_height = get_allocated_height ();
+        var bin_height = bin_window.get_height ();
+        if (bin_height == 1) {
+            bin_height = 0;
+        }
+
+        if (bin_y + bin_height < 0 || bin_y >= widget_height) {
+            int estimated_widget_height = estimated_widget_height ();
+
+            remove_all_widgets ();
+            bin_height = 0;
+
+            double percentage = vadjustment.value / vadjustment.upper;
+            uint top_widget_index = (uint)(model.get_n_items () * percentage);
+
+            if (top_widget_index > model.get_n_items ()) {
+                shown_to = model.get_n_items ();
+                shown_from = model.get_n_items ();
+                bin_y_diff = vadjustment.value + vadjustment.page_size;
+            } else {
+                shown_from = top_widget_index;
+                shown_to = top_widget_index;
+                bin_y_diff = top_widget_index * estimated_widget_height;
+            }
+        }
+
+        var top_removed = remove_top_widgets (ref bin_height);
+        var top_added = insert_top_widgets (ref bin_height);
+        var bottom_removed = remove_bottom_widgets (ref bin_height);
+        var bottom_added = insert_bottom_widgets (ref bin_height);
+
+        var widgets_changed = top_removed || top_added || bottom_removed || bottom_added || model_changed;
+
+        if (vadjustment != null && widgets_changed) {
+            uint top_part;
+            uint widget_part;
+            uint bottom_part;
+
+            uint new_upper = estimated_list_height (out top_part, out bottom_part, out widget_part);
+
+            if (new_upper > _vadjustment.upper) {
+                bin_y_diff = double.max (top_part, vadjustment.value);
+            } else {
+                bin_y_diff = double.min (top_part, vadjustment.value);
+            }
+
+            configure_adjustment ();
+
+            set_value (bin_y_diff - bin_y);
+            if (vadjustment.value < bin_y_diff) {
+                set_value (bin_y_diff);
+            }
+
+            if (bin_y > 0) {
+                bin_y_diff = vadjustment.value;
+            }
+        }
+
+        configure_adjustment ();
+        update_bin_window (bin_height);
+        position_children ();
+        queue_draw ();
+    }
+
+    private int estimated_widget_height () {
+        int average_widget_height = 0;
+        int used_widgets = 0;
+
+        foreach (var w in current_widgets) {
+            if (w.visible) {
+                average_widget_height += get_widget_height (w);
+                used_widgets ++;
+            }
+        }
+
+        if (used_widgets > 0) {
+            average_widget_height /= used_widgets;
+        } else {
+            average_widget_height = last_valid_widget_height;
+        }
+
+        last_valid_widget_height = average_widget_height;
+
+        return average_widget_height;
+    }
+
+    private void configure_adjustment () {
+        int widget_height = get_allocated_height ();
+        uint list_height = estimated_list_height ();
+
+        if ((int)vadjustment.upper != uint.max (list_height, widget_height)) {
+            vadjustment.upper = uint.max (list_height, widget_height);
+        } else if (list_height == 0) {
+            vadjustment.upper = widget_height;
+        }
+
+        if ((int)vadjustment.page_size != widget_height) {
+            vadjustment.page_size = widget_height;
+        }
+
+        if (vadjustment.value > vadjustment.upper - vadjustment.page_size) {
+            double v = vadjustment.upper - vadjustment.page_size;
+            set_value (v);
+        }
+    }
+
+    private void set_value (double v) {
+        if (v == vadjustment.value)
+            return;
+
+        block = true;
+        vadjustment.value = v;
+        block = false;
+    }
+
+    private uint estimated_list_height (out uint top = null, out uint bottom = null, out uint visible_widgets = null) {
+        if (model == null) {
+            top = 0;
+            bottom = 0;
+            visible_widgets = 0;
+            return 0;
+        }
+
+        int widget_height = estimated_widget_height ();
+        uint top_widgets = shown_from;
+        uint bottom_widgets = model.get_n_items () - shown_to;
+
+        int exact_height = 0;
+        foreach (var w in current_widgets) {
+            int h = get_widget_height (w);
+            exact_height += h;
+        }
+
+        top = top_widgets * widget_height;
+        bottom = bottom_widgets * widget_height;
+        visible_widgets = exact_height;
+
+        uint h = top + bottom + visible_widgets;
+        return h;
+    }
+
+    public unowned VirtualizingListBoxRow? get_row_at_y (int y) {
+        Gtk.Allocation alloc;
+        foreach (var row in current_widgets) {
+            row.get_allocation (out alloc);
+            if (y >= alloc.y + bin_y && y <= alloc.y + bin_y + alloc.height) {
+                unowned VirtualizingListBoxRow return_value = row;
+                return return_value;
+            }
+        }
+
+        return null;
+    }
+
+    private void clear_active_row () {
+        if (active_row != null) {
+            active_row.unset_state_flags (Gtk.StateFlags.ACTIVE);
+        }
+        active_row = null;
+        active_item = null;
+    }
+
+    private void on_multipress_pressed (int n_press, double x, double y) {
+        clear_active_row ();
+        pressed_item = null;
+        var row = get_row_at_y ((int) y);
+        if (row != null && row.sensitive && row.selectable) {
+            active_row = row;
+            active_item = row.model_item;
+            pressed_item = row.model_item;
+            row.set_state_flags (Gtk.StateFlags.ACTIVE, false);
+        }
+    }
+
+    private void selection_modifiers (Gdk.ModifierType state, out bool modify, out bool extend) {
+        var modify_mask = get_modifier_mask (Gdk.ModifierIntent.MODIFY_SELECTION);
+        var extend_mask = get_modifier_mask (Gdk.ModifierIntent.EXTEND_SELECTION);
+        if (modify_mask == 0) {
+            modify_mask = Gdk.ModifierType.CONTROL_MASK;
+        }
+        if (extend_mask == 0) {
+            extend_mask = Gdk.ModifierType.SHIFT_MASK;
+        }
+        modify = (state & modify_mask) == modify_mask;
+        extend = (state & extend_mask) == extend_mask;
+    }
+
+    private void get_current_selection_modifiers (out bool modify, out bool extend) {
+        Gdk.ModifierType state = 0;
+        Gtk.get_current_event_state (out state);
+        selection_modifiers (state, out modify, out extend);
+    }
+
+    private void on_multipress_released (int n_press, double x, double y) {
+        var row = active_row;
+        var item = active_item;
+        pressed_item = null;
+        clear_active_row ();
+        if (row == null || item == null || row.model_item != item || get_row_at_y ((int) y) != row) {
+            return;
+        }
+        bool modify, extend;
+        get_current_selection_modifiers (out modify, out extend);
+        update_selection (row, modify, extend, row.focus_on_click);
+        if (!modify && !extend && model.get_selected_rows ().size == 1
+            && ((activate_on_single_click && n_press == 1) || (!activate_on_single_click && n_press == 2))) {
+            row_activated (item);
+        }
+    }
+
+    private void update_selection (VirtualizingListBoxRow row, bool modify, bool extend, bool grab_cursor = true) {
+        if (selection_mode == Gtk.SelectionMode.NONE || !row.selectable || !row.sensitive
+            || row.model_item == null || model.get_index_of (row.model_item) < 0) {
+            return;
+        }
+        var previous_cursor = cursor_item;
+        cursor_item = row.model_item;
+        update_cursor (row.model_item, grab_cursor);
+        if (selection_mode == Gtk.SelectionMode.MULTIPLE) {
+            if (extend) {
+                if (selection_anchor == null || model.get_index_of (selection_anchor) < 0) {
+                    selection_anchor = previous_cursor ?? row.model_item;
+                }
+                if (!modify) {
+                    unselect_all_internal ();
+                }
+                select_all_between (selection_anchor, row.model_item);
+            } else if (modify) {
+                model.set_item_selected (row.model_item, !model.get_item_selected (row.model_item));
+                selection_anchor = row.model_item;
+            } else {
+                unselect_all_internal ();
+                model.set_item_selected (row.model_item, true);
+                selection_anchor = row.model_item;
+            }
+        } else {
+            bool select = selection_mode == Gtk.SelectionMode.BROWSE || !modify || !model.get_item_selected (row.model_item);
+            unselect_all_internal ();
+            model.set_item_selected (row.model_item, select);
+            selection_anchor = row.model_item;
+        }
+        if (model.get_item_selected (row.model_item)) {
+            selected_row = row.model_item;
+        }
+        notify_selection ();
+    }
+
+    private void select_all_between (GLib.Object from, GLib.Object to) {
+        foreach (var item in model.get_items_between (from, to)) {
+            model.set_item_selected (item, true);
+        }
+    }
+
+    private void notify_selection () {
+        if (selected_row == null || !model.get_item_selected (selected_row)) {
+            selected_row = null;
+            for (uint i = 0; i < model.get_n_items (); i++) {
+                var item = model.get_object (i);
+                if (item != null && model.get_item_selected (item)) {
+                    selected_row = item;
+                    break;
+                }
+            }
+        }
+        foreach (var row in current_widgets) {
+            if (model.get_item_selected (row.model_item)) {
+                row.set_state_flags (Gtk.StateFlags.SELECTED, false);
+            } else {
+                row.unset_state_flags (Gtk.StateFlags.SELECTED);
+            }
+        }
+        selection_count = model.get_selected_rows ().size;
+        update_selection_index ();
+        row_selected (selected_row);
+        selected_rows_changed ();
+    }
+
+    private void update_selection_index () {
+        selection_index = -1;
+        if (selection_count > 0) {
+            for (uint i = 0; i < model.get_n_items (); i++) {
+                var item = model.get_object (i);
+                if (item != null && model.get_item_selected (item)) {
+                    selection_index = (int) i;
+                    break;
+                }
+            }
+        }
+    }
+
+    private void reconcile_selection () {
+        bool had_selection = selection_count > 0;
+        int previous_index = selection_index;
+        bool changed = selection_count != model.get_selected_rows ().size;
+        foreach (var item in model.get_selected_rows ().to_array ()) {
+            if (model.get_index_of (item) < 0) {
+                model.set_item_selected (item, false);
+                changed = true;
+            }
+        }
+        if (selection_anchor != null && model.get_index_of (selection_anchor) < 0) {
+            selection_anchor = null;
+        }
+        if (cursor_item != null && model.get_index_of (cursor_item) < 0) {
+            cursor_item = null;
+        }
+        GLib.Object? replacement = null;
+        if (had_selection && model.get_selected_rows ().size == 0) {
+            for (int i = int.max (0, previous_index); i < model.get_n_items (); i++) {
+                replacement = model.get_object ((uint) i);
+                if (replacement != null) {
+                    break;
+                }
+            }
+            if (replacement == null) {
+                for (int i = int.min (previous_index - 1, (int) model.get_n_items () - 1); i >= 0; i--) {
+                    replacement = model.get_object ((uint) i);
+                    if (replacement != null) {
+                        break;
+                    }
+                }
+            }
+            if (replacement != null) {
+                model.set_item_selected (replacement, true);
+                selected_row = replacement;
+                selection_anchor = replacement;
+                cursor_item = replacement;
+                changed = true;
+            }
+        }
+        if (changed) {
+            notify_selection ();
+            if (replacement != null && activate_on_single_click) {
+                row_activated (replacement);
+            }
+        } else {
+            update_selection_index ();
+        }
+    }
+
+    private int edge_index (bool end) {
+        int count = (int) model.get_n_items ();
+        for (int i = end ? count - 1 : 0; i >= 0 && i < count; i += end ? -1 : 1) {
+            if (model.get_object (i) != null) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private bool on_key_pressed (uint keyval, uint keycode, Gdk.ModifierType state) {
+        if (model == null || selection_mode == Gtk.SelectionMode.NONE) {
+            return false;
+        }
+        bool modify, extend;
+        selection_modifiers (state, out modify, out extend);
+        if (selection_mode == Gtk.SelectionMode.MULTIPLE && modify && (keyval == Gdk.Key.a || keyval == Gdk.Key.A)) {
+            unselect_all_internal ();
+            if (!extend) {
+                for (uint i = 0; i < model.get_n_items (); i++) {
+                    var item = model.get_object (i);
+                    if (item != null) {
+                        model.set_item_selected (item, true);
+                    }
+                }
+            }
+            if (selection_anchor == null) {
+                selection_anchor = cursor_item ?? model.get_object ((uint) int.max (0, edge_index (false)));
+            }
+            notify_selection ();
+            return true;
+        }
+        int index = -1;
+        var current = cursor_item ?? selected_row;
+        switch (keyval) {
+            case Gdk.Key.Up:
+            case Gdk.Key.KP_Up:
+                index = current != null ? model.get_index_of_item_before (current) : edge_index (true);
+                break;
+            case Gdk.Key.Down:
+            case Gdk.Key.KP_Down:
+                index = current != null ? model.get_index_of_item_after (current) : edge_index (false);
+                break;
+            case Gdk.Key.Home:
+            case Gdk.Key.KP_Home:
+                index = edge_index (false);
+                break;
+            case Gdk.Key.End:
+            case Gdk.Key.KP_End:
+                index = edge_index (true);
+                break;
+            case Gdk.Key.space:
+                index = model.get_index_of (current);
+                break;
+            case Gdk.Key.Return:
+            case Gdk.Key.KP_Enter:
+                if (selected_row != null && model.get_selected_rows ().size == 1) {
+                    row_activated (selected_row);
+                }
+                return true;
+            default:
+                return false;
+        }
+        var row = ensure_index_visible (index);
+        if (row != null) {
+            if (modify && !extend && keyval != Gdk.Key.space) {
+                cursor_item = row.model_item;
+                update_cursor (cursor_item, true);
+            } else {
+                update_selection (row, modify, extend);
+                if (!modify && !extend && activate_on_single_click) {
+                    row_activated (row.model_item);
+                }
+            }
+        }
+        return true;
+    }
+
+    public void select_row_at_index (int index) {
+        var row = ensure_index_visible (index);
+
+        if (row != null) {
+            select_and_activate (row);
+        }
+    }
+
+    private void select_and_activate (VirtualizingListBoxRow row, bool grab_focus = true) {
+        select_row (row);
+        update_cursor (row.model_item, grab_focus);
+        row_activated (row.model_item);
+    }
+
+    public void update_cursor (GLib.Object item, bool grab_focus) {
+        var row = ensure_index_visible (model.get_index_of (item));
+        if (row != null && grab_focus) {
+            row.grab_focus ();
+        }
+    }
+
+    private VirtualizingListBoxRow? ensure_index_visible (int index) {
+        if (index < 0) {
+            return null;
+        }
+
+        var n_items = model.get_n_items ();
+        if (n_items == 0) {
+            return null;
+        }
+
+        var index_max = n_items - 1;
+        if (index > index_max) {
+            return null;
+        }
+
+        if (index == 0) {
+            set_value (0.0);
+            ensure_visible_widgets ();
+            foreach (VirtualizingListBoxRow row in current_widgets) {
+                if (index == model.get_index_of (row.model_item)) {
+                    return row;
+                }
+            }
+        }
+
+        if (index == index_max) {
+            set_value (vadjustment.upper);
+            ensure_visible_widgets ();
+            foreach (VirtualizingListBoxRow row in current_widgets) {
+                if (index == model.get_index_of (row.model_item)) {
+                    return row;
+                }
+            }
+        }
+
+        while (index <= shown_from) {
+            vadjustment.value--;
+            ensure_visible_widgets ();
+        }
+
+        while (index + 1 >= shown_to) {
+            vadjustment.value++;
+            ensure_visible_widgets ();
+        }
+
+        foreach (VirtualizingListBoxRow row in current_widgets) {
+            if (index == model.get_index_of (row.model_item)) {
+                return row;
+            }
+        }
+
+        return null;
+    }
+
+    public void select_row (VirtualizingListBoxRow row) {
+        update_selection (row, false, false, false);
+    }
+
+    public bool prepare_drag_selection () {
+        var item = pressed_item;
+        pressed_item = null;
+        clear_active_row ();
+        if (item == null) {
+            return false;
+        }
+        var row = ensure_index_visible (model.get_index_of (item));
+        if (row == null || !row.selectable || !row.sensitive) {
+            return false;
+        }
+        select_for_context (row);
+        return model.get_item_selected (item);
+    }
+
+    public void select_for_context (VirtualizingListBoxRow row) {
+        if (!model.get_item_selected (row.model_item)) {
+            select_row (row);
+        }
+    }
+
+    private bool unselect_all_internal () {
+        if (selection_mode == Gtk.SelectionMode.NONE) {
+            return false;
+        }
+
+        foreach (var row in current_widgets) {
+            row.unset_state_flags (Gtk.StateFlags.SELECTED);
+        }
+
+        model.unselect_all ();
+        selected_row = null;
+
+        return true;
+    }
+
+    public override bool focus (Gtk.DirectionType direction) {
+        var focus_child = get_focus_child () as VirtualizingListBoxRow;
+        int next_focus_index = -1;
+
+        if (focus_child != null && focus_child.model_item != null) {
+            if (focus_child.child_focus (direction)) {
+                return true;
+            }
+
+            if (direction == Gtk.DirectionType.UP || direction == Gtk.DirectionType.TAB_BACKWARD) {
+                next_focus_index = model.get_index_of_item_before (focus_child.model_item);
+            } else if (direction == Gtk.DirectionType.DOWN || direction == Gtk.DirectionType.TAB_FORWARD) {
+                next_focus_index = model.get_index_of_item_after (focus_child.model_item);
+            }
+        } else {
+            if (direction == Gtk.DirectionType.UP || direction == Gtk.DirectionType.TAB_BACKWARD) {
+                next_focus_index = model.get_index_of (cursor_item ?? selected_row);
+                if (next_focus_index == -1) {
+                    next_focus_index = (int)model.get_n_items () - 1;
+                }
+            } else {
+                next_focus_index = model.get_index_of (cursor_item ?? selected_row);
+                if (next_focus_index == -1) {
+                    next_focus_index = 0;
+                }
+            }
+        }
+
+        if (next_focus_index == -1) {
+            if (keynav_failed (direction)) {
+                return true;
+            }
+
+            return false;
+        }
+
+        var widget = ensure_index_visible (next_focus_index);
+        if (widget != null) {
+            bool modify = false;
+            bool extend = false;
+            if (direction == Gtk.DirectionType.UP || direction == Gtk.DirectionType.DOWN) {
+                get_current_selection_modifiers (out modify, out extend);
+            }
+            update_selection (widget, modify, extend);
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool get_border (out Gtk.Border border) {
+        border = Gtk.Border ();
+        return false;
+    }
+
+    public Gee.HashSet<weak GLib.Object> get_selected_rows () {
+        return model.get_selected_rows ();
+    }
+}

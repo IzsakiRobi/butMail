@@ -1,0 +1,23 @@
+[Desktop Entry]
+Name=@APPLICATION_NAME@
+Comment=Send and receive mail
+Exec=@APPLICATION_ID@ %U
+Icon=@APPLICATION_ID@
+Keywords=Email;E-mail;Mail;
+Terminal=false
+Type=Application
+MimeType=x-scheme-handler/mailto;
+StartupNotify=true
+Categories=GNOME;GTK;Network;Email;
+X-GNOME-UsesNotifications=true
+Actions=Compose;GetNewMail;
+
+[Desktop Action Compose]
+Name=Compose Message
+Exec=@APPLICATION_ID@ mailto:
+Icon=mail-message-new
+
+[Desktop Action GetNewMail]
+Name=Get New Mail
+Exec=@APPLICATION_ID@ --get-new-mail
+Icon=mail-send-receive
