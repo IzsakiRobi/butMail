@@ -35,6 +35,7 @@ namespace ButMail {
     }
 
     public class InboxMonitor : Object {
+        public signal void mail_arrived (Folder folder);
         private weak Application app;
         private weak MailBackend backend;
         private HashTable<string, InboxWatch> inboxes = new HashTable<string, InboxWatch> (str_hash, str_equal);
@@ -96,19 +97,24 @@ namespace ButMail {
                 inbox.dirty = false;
                 var items = yield snapshot (inbox.folder);
                 if (stopped) { break; }
+                bool arrived = false;
                 var present = new HashTable<string, bool> (str_hash, str_equal);
                 var unread = new HashTable<string, bool> (str_hash, str_equal);
                 foreach (var item in items.data) {
                     present.insert (item.uid, true);
                     if (!item.unread || inbox.hidden.contains (item.uid)) { continue; }
                     unread.insert (item.uid, true);
-                    if (inbox.ready && !inbox.known.contains (item.uid)) { notify_message (inbox.model, item); }
+                    if (inbox.ready && !inbox.known.contains (item.uid)) {
+                        notify_message (inbox.model, item);
+                        arrived = true;
+                    }
                 }
                 notifications.resolve (inbox.model.id, unread);
                 notifications.save ();
                 inbox.known = present;
                 inbox.ready = true;
                 inbox.unread = unread.size ();
+                if (arrived) { mail_arrived (inbox.model); }
                 update_badge ();
                 yield backend.update_folder_view (inbox.model);
                 inbox.model.unread = inbox.unread;

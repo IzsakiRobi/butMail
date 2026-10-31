@@ -32,6 +32,8 @@ namespace ButMail {
         private Adw.Toast? move_toast;
         private MailBackend backend;
         private InboxMonitor inbox_monitor;
+        private bool latest_pending = true;
+        private Folder? latest_inbox;
         private string? notification_folder;
         private string? notification_uid;
         private uint read_timeout;
@@ -75,7 +77,13 @@ namespace ButMail {
             data = new MailData (settings);
             backend = new MailBackend ();
             inbox_monitor = new InboxMonitor ((Application) application, backend);
-            backend.folder_updated.connect (() => open_pending_notification ());
+            inbox_monitor.mail_arrived.connect ((folder) => {
+                if (!is_active) { latest_pending = true; latest_inbox = folder; }
+            });
+            backend.folder_updated.connect (() => {
+                open_pending_notification ();
+                reveal_latest ();
+            });
             operations = new MailOperations (data, backend);
             operations.completed.connect (show_operation);
             operations.started.connect (show_progress);
@@ -408,9 +416,11 @@ namespace ButMail {
                 } finally {
                     connecting = false;
                     update_refresh_state ();
+                    reveal_latest ();
                 }
             });
-            map.connect (() => conversations.refresh_selection ());
+            map.connect (() => { conversations.refresh_selection (); reveal_latest (); });
+            notify["is-active"].connect (() => { if (is_active) { reveal_latest (); } });
         }
 
         private void save_geometry () {
@@ -423,8 +433,24 @@ namespace ButMail {
             }
         }
 
-        /* ----- Notification Navigation ----- */
+        /* ----- Window and Notification Navigation ----- */
+        private void reveal_latest () {
+            if (!latest_pending || !is_active || notification_folder != null) { return; }
+            if (latest_inbox != null) {
+                var inbox = latest_inbox;
+                latest_inbox = null;
+                if (current_folder != inbox) { folders.select_folder (inbox); }
+            }
+            if (current_folder == null) { return; }
+            if (conversations.has_messages) {
+                latest_pending = false;
+                conversations.scroll_to_top ();
+            } else if (!connecting && !current_folder.loading) { latest_pending = false; }
+        }
+
         public void open_mail (string folder_id, string uid) {
+            latest_pending = false;
+            latest_inbox = null;
             notification_folder = folder_id;
             notification_uid = uid;
             open_pending_notification ();
@@ -503,7 +529,7 @@ namespace ButMail {
                 try { backend.load_folder.end (result); }
                 catch (Error error) {
                     if (!(error is IOError.CANCELLED)) { show_operation ("Unable to load messages: " + error.message, null); }
-                }
+                } finally { reveal_latest (); }
             });
         }
 

@@ -96,6 +96,7 @@ namespace ButMail {
         public signal void conversation_activated ();
         private ListStore visible_items;
         private Gtk.MultiSelection selection;
+        private Gtk.ListView list;
         private Gtk.Stack stack;
         private EmptyState empty;
         private Gtk.SearchEntry search;
@@ -185,7 +186,7 @@ namespace ButMail {
             factory.unbind.connect ((item) => {
                 ((ConversationRow) ((Gtk.ListItem) item).child).unbind_conversation ();
             });
-            var list = new Gtk.ListView (selection, factory) { single_click_activate = false };
+            list = new Gtk.ListView (selection, factory) { single_click_activate = false };
             list.add_css_class ("conversation-list");
             list.add_css_class ("separators");
             var keys = new Gtk.EventControllerKey ();
@@ -250,6 +251,10 @@ namespace ButMail {
             status_handler = folder.notify.connect (() => { update_status (); });
             search.text = "";
             refilter ();
+        }
+
+        public void scroll_to_top () {
+            if (visible_items.get_n_items () > 0) { list.scroll_to (0, Gtk.ListScrollFlags.NONE, null); }
         }
 
         public void select_first () {
