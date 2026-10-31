@@ -5,7 +5,7 @@
 public class ButMail.BackendTrash : Object {
     public static async void empty (Camel.Folder folder, Cancellable? cancellable = null) throws Error {
         var store = folder.parent_store;
-        var trash = yield store.get_trash_folder (Priority.DEFAULT, cancellable);
+        var trash = yield BackendFolders.trash_folder (store, cancellable);
         if (trash == null || trash.full_name != folder.full_name) {
             throw new IOError.INVALID_ARGUMENT (("The selected folder is not Trash."));
         }

@@ -166,6 +166,7 @@ namespace ButMail {
             editor.notify["ready"].connect (() => { send.sensitive = recipient.text.strip () != "" && editor.ready && !sending; });
             send.clicked.connect (() => { submit.begin (); });
             send.add_css_class ("suggested-action");
+            send.add_css_class ("pill");
             actions.pack_end (send);
             toolbar.add_bottom_bar (actions);
             content = toolbar;

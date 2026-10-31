@@ -15,6 +15,7 @@ namespace ButMail {
             this.store = store;
             list = new Gtk.ListBox () { selection_mode = Gtk.SelectionMode.SINGLE, focusable = false };
             list.add_css_class ("navigation-sidebar");
+            list.add_css_class ("recipient-suggestions");
             list.row_activated.connect ((row) => accept (row.get_index ()));
             popup = new Gtk.Popover () { autohide = false, has_arrow = false, focusable = false, position = Gtk.PositionType.BOTTOM };
             popup.child = new Gtk.ScrolledWindow () {
@@ -41,7 +42,13 @@ namespace ButMail {
                     list.select_row (list.get_row_at_index (next));
                     return true;
                 }
-                if (position >= 0 && (key == Gdk.Key.Return || key == Gdk.Key.KP_Enter || key == Gdk.Key.Tab)) {
+                if (key == Gdk.Key.Tab || key == Gdk.Key.ISO_Left_Tab) {
+                    if (key == Gdk.Key.Tab && (modifiers & Gtk.accelerator_get_default_mod_mask ()) == 0 && position >= 0) {
+                        accept (position);
+                    } else { popup.popdown (); }
+                    return false;
+                }
+                if (position >= 0 && (key == Gdk.Key.Return || key == Gdk.Key.KP_Enter)) {
                     accept (position);
                     return true;
                 }

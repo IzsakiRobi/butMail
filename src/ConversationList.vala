@@ -112,7 +112,7 @@ namespace ButMail {
                 placeholder_text = "Search messages", margin_start = 12, margin_end = 12,
                 margin_top = 8, margin_bottom = 12
             };
-            search.search_changed.connect (refilter);
+            search.search_changed.connect (() => refilter ());
             append (search);
             append (new Gtk.Separator (Gtk.Orientation.HORIZONTAL));
             empty_trash = new Gtk.Button () {
@@ -190,8 +190,12 @@ namespace ButMail {
             list.add_css_class ("separators");
             var keys = new Gtk.EventControllerKey ();
             keys.key_pressed.connect ((key, code, modifiers) => {
-                if (key != Gdk.Key.Menu && !(key == Gdk.Key.F10 && (modifiers & Gdk.ModifierType.SHIFT_MASK) != 0)) { return false; }
                 if (selection.get_selection ().is_empty ()) { return false; }
+                if ((key == Gdk.Key.Delete || key == Gdk.Key.KP_Delete) &&
+                    (modifiers & Gtk.accelerator_get_default_mod_mask ()) == 0) {
+                    return list.activate_action_variant ("win.trash", null);
+                }
+                if (key != Gdk.Key.Menu && !(key == Gdk.Key.F10 && (modifiers & Gdk.ModifierType.SHIFT_MASK) != 0)) { return false; }
                 show_menu (list, 24, 24);
                 return true;
             });
@@ -226,7 +230,7 @@ namespace ButMail {
             if (folder != null && status_handler != 0) { folder.disconnect (status_handler); }
             folder = selected_folder;
             empty_trash.visible = folder.role == FolderRole.TRASH;
-            folder_handler = folder.conversations.items_changed.connect (refilter);
+            folder_handler = folder.conversations.items_changed.connect (() => refilter (true));
             status_handler = folder.notify.connect (() => { update_status (); });
             search.text = "";
             refilter ();
@@ -311,20 +315,38 @@ namespace ButMail {
             conversation_selected (selected.length == 1 ? selected[0] : null);
         }
 
-        private void refilter () {
+        private void refilter (bool select_next = false) {
             close_menu ();
             var previous = get_selected_conversations ();
-            filtering = true;
-            visible_items.remove_all ();
+            uint selected_position = selection.get_selection ().get_minimum ();
+            var next = new GenericArray<Conversation> ();
             if (folder != null) {
                 for (uint i = 0; i < folder.conversations.get_n_items (); i++) {
                     var conversation = (Conversation) folder.conversations.get_item (i);
-                    if (conversation.matches (search.text.strip ())) { visible_items.append (conversation); }
+                    if (conversation.matches (search.text.strip ())) { next.add (conversation); }
                 }
             }
+            uint count = visible_items.get_n_items ();
+            uint start = 0, suffix = 0;
+            while (start < count && start < next.length && visible_items.get_item (start) == next[start]) { start++; }
+            while (suffix < count - start && suffix < next.length - start &&
+                visible_items.get_item (count - suffix - 1) == next[next.length - suffix - 1]) { suffix++; }
+            filtering = true;
+            if (start + suffix != count || start + suffix != next.length) {
+                var changed = new GenericArray<Conversation> ();
+                for (uint i = start; i < next.length - suffix; i++) { changed.add (next[i]); }
+                visible_items.splice (start, count - start - suffix, changed.data);
+            }
+            bool retained = false;
             foreach (var conversation in previous) {
                 uint position;
-                if (visible_items.find (conversation, out position)) { selection.select_item (position, false); }
+                if (visible_items.find (conversation, out position)) {
+                    selection.select_item (position, false);
+                    retained = true;
+                }
+            }
+            if (select_next && previous.length > 0 && !retained && next.length > 0) {
+                selection.select_item (uint.min (selected_position, next.length - 1), true);
             }
             filtering = false;
             update_status ();

@@ -80,7 +80,7 @@ namespace ButMail {
                     (session.registry.find_extension (source, E.SourceCamel.get_extension_name (account.backend_name)) ?? source).camel_configure_service (store);
                     if (account.backend_name == "imapx") {
                         var tuned = store.ref_settings ().clone ();
-                        tuned.set ("concurrent-connections", 5u);
+                        tuned.set ("concurrent-connections", 5u, "use-real-trash-path", false);
                         store.set_settings (tuned);
                     }
                     var root = new Folder (source.display_name, "avatar-default-symbolic", goa.address ?? source.display_name,
@@ -546,7 +546,7 @@ namespace ButMail {
                     settings.get ("real-%s-path".printf (kind), out current);
                     var path = setup.lookup ("Backend:Imapx Backend:real-%s-path:s".printf (kind));
                     if (string_is_empty (current) && !string_is_empty (path)) {
-                        settings.set ("real-%s-path".printf (kind), path, "use-real-%s-path".printf (kind), true);
+                        settings.set ("real-%s-path".printf (kind), path, "use-real-%s-path".printf (kind), kind != "trash");
                     }
                 }
             }
@@ -632,8 +632,11 @@ namespace ButMail {
                 if (members == null || origins.lookup (conversation) != source) { throw new IOError.NOT_FOUND ("The selected conversation has changed."); }
                 foreach (var info in members.data) { uids.add (info.uid); }
             }
-            GenericArray<weak string>? transferred;
-            if (!yield source.transfer_messages_to (uids, target, true, Priority.DEFAULT, lifetime, out transferred)) { throw new IOError.FAILED ("The server could not move these messages."); }
+            GenericArray<weak string>? transferred = null;
+            if (!yield source.transfer_messages_to (uids, target, true, Priority.DEFAULT, lifetime, out transferred)) {
+                throw new IOError.FAILED ("The server could not move these messages.");
+            }
+            yield finish_move (source);
             timing = mail_step ("IMAP move", timing);
             yield update_folder_view (drag.source);
             yield update_folder_view (destination);
@@ -649,10 +652,23 @@ namespace ButMail {
             });
         }
 
+        private async void finish_move (Camel.Folder source) {
+            try {
+                if (!yield source.synchronize (true, Priority.DEFAULT, lifetime)) {
+                    throw new IOError.FAILED ("The source folder could not be synchronized.");
+                }
+            } catch (Error error) {
+                failed ("Messages moved; source cleanup failed: " + error.message);
+            }
+        }
+
         private async void undo_move (Folder original, Folder destination, GenericArray<string> uids) throws Error {
             var source = yield open_folder (destination);
             var target = yield open_folder (original);
-            yield source.transfer_messages_to (uids, target, true, Priority.DEFAULT, lifetime, null);
+            if (!yield source.transfer_messages_to (uids, target, true, Priority.DEFAULT, lifetime, null)) {
+                throw new IOError.FAILED ("The server could not undo the move.");
+            }
+            yield finish_move (source);
             yield update_folder_view (original);
             yield update_folder_view (destination);
         }
@@ -862,7 +878,7 @@ namespace ButMail {
             var folder = yield special_folder (original_account, FolderRole.DRAFTS, null, cancellable);
             var info = folder.get_message_info (snapshot.draft_uid);
             if (info != null) { info.set_flags (Camel.MessageFlags.DELETED, Camel.MessageFlags.DELETED); }
-            yield folder.synchronize (false, Priority.DEFAULT, cancellable);
+            yield folder.synchronize (true, Priority.DEFAULT, cancellable);
             var model = find_role (accounts.lookup (root_id (original_account)), FolderRole.DRAFTS);
             if (model != null) { refresh_cached_folder.begin (model); }
         }

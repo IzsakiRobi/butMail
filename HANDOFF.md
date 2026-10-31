@@ -1,4 +1,4 @@
-# butMail — current handoff, 2026-10-29
+# butMail — current handoff, 2026-10-30
 
 ## Current project
 
@@ -59,3 +59,15 @@ Mail latency investigation: opt-in BUTMAIL_TIMING=1 records stage durations only
 User latency testing confirmed faster send/delete. SMTP connection/submission/sent-copy timings were 1.65/0.83/0.73 seconds. Two moves took 3.13/2.13 seconds in Camel transfer, followed by redundant remote view refreshes taking another 3.81/4.22 seconds. IMAPX transfer already updates the source summary and refreshes the destination internally. Move/Undo now rebuild opened views from those local Camel summaries using the existing update_folder_view helper, instead of issuing additional remote folder refreshes. Inbox monitoring uses the same helper. The regular IDLE changes and refresh/poll paths remain unchanged. Compile verification only; actual move/delete/Undo behavior remains user-tested.
 
 The user approved publishing all current local fixes to main and replacing the v0.5 binary RPM on 2026-10-29. FolderSidebar context menus now own their action group directly, are anchored to the stable sidebar rather than a recycled row, and remain parented after closing until replacement/disposal. This prevents Empty Trash and other folder actions from losing their action lookup during popup closure. A standalone no-mail GTK probe checked action activation after closure, and the application compiled successfully. The standard RPM icon remains under /usr/share/icons/hicolor/scalable/apps/io.github.IzsakiRobi.butMail.svg, with desktop Icon=io.github.IzsakiRobi.butMail and a resource fallback. The README references the same source SVG.
+
+Local 2026-10-30 refinements awaiting user review: recipient suggestions use the theme accent selection colors; Tab accepts the highlighted suggestion then continues native focus traversal, while Shift+Tab dismisses without accepting. Composer formatting buttons are excluded from Tab focus, and Send uses the native pill class alongside suggested-action. No publication requested at that stage.
+
+The conversation list handles unmodified Delete/KP_Delete through the existing win.trash action, including multi-selection. The handler belongs to the ListView, so Delete in search/composer fields retains normal text editing behavior; Trash and other disabled action states remain respected.
+
+Conversation selection now advances after any removal of all selected items, including toolbar, context menu and Delete-key Trash actions. The shared list update selects the row at the first removed position, or the preceding row at the end, without an explicit scroll/focus request. Search/folder switches do not trigger this fallback. The visible model retains unchanged prefix/suffix rows and splices only the changed middle; unchanged background summaries no longer clear/repopulate the list or reset native scroll anchoring.
+
+Conversation-list rows suppress the separate native focus-visible outline/shadow; the selected-row background remains the visual indicator. Delete selection, keyboard focus and scrolling behavior are unchanged.
+
+Trash duplication was confirmed with a filtered protocol trace: one app operation caused EDS to issue UID COPY for the same source UID on two different connections. IMAPX automatic real-trash routing is disabled on the app's cloned runtime settings, retaining the physical Trash path and five concurrent connections. Moves use a single explicit transfer followed by source synchronization/expunge; cleanup failures are reported without repeating a successful transfer. Undo shares this completion path. Physical Trash lookup for folder deletion/Empty Trash is independent of automatic routing. Previous draft cleanup explicitly expunges Deleted messages. The speculative real-trash branch and temporary move diagnostics were removed. The user confirmed a deletion now produces exactly one copy. Existing duplicates were left untouched. The normal launcher has been restored; filtered diagnostics remain external to the repository.
+
+The user authorized publishing these refinements to main after the list navigation/scroll fix on 2026-10-31. Keep version 0.5 and the minimal release description. Compilation and whitespace validation passed; real mail actions and visual/scroll behavior remain user-tested.

@@ -64,7 +64,7 @@ namespace ButMail {
             formatting.append (format_button ("format-text-underline-symbolic", "Underline", "Underline", WebKit.EditorTypingAttributes.UNDERLINE));
             formatting.append (format_button ("format-text-strikethrough-symbolic", "Strikethrough", "Strikethrough", WebKit.EditorTypingAttributes.STRIKETHROUGH));
             tools.append (formatting);
-            var clear = new Gtk.Button.with_label ("Fₓ") { tooltip_text = "Remove Formatting", focus_on_click = false };
+            var clear = new Gtk.Button.with_label ("Fₓ") { tooltip_text = "Remove Formatting", focus_on_click = false, focusable = false };
             clear.clicked.connect (() => { execute ("RemoveFormat"); execute ("Unlink"); });
             tools.append (clear);
             var font = tool_button ("font-select-symbolic", "Font");
@@ -103,11 +103,11 @@ namespace ButMail {
         }
 
         private Gtk.Button tool_button (string icon, string tooltip) {
-            return new Gtk.Button.from_icon_name (icon) { tooltip_text = tooltip, focus_on_click = false };
+            return new Gtk.Button.from_icon_name (icon) { tooltip_text = tooltip, focus_on_click = false, focusable = false };
         }
 
         private Gtk.ToggleButton format_button (string icon, string tooltip, string command, WebKit.EditorTypingAttributes attribute) {
-            var button = new Gtk.ToggleButton () { icon_name = icon, tooltip_text = tooltip, focus_on_click = false };
+            var button = new Gtk.ToggleButton () { icon_name = icon, tooltip_text = tooltip, focus_on_click = false, focusable = false };
             button.clicked.connect (() => execute (command));
             view.get_editor_state ().notify["typing-attributes"].connect (() => {
                 button.active = (view.get_editor_state ().typing_attributes & attribute) != 0;

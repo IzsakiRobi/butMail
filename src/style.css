@@ -7,6 +7,7 @@
 .butmail .conversation-footer.empty-list,
 .butmail .conversation-footer.empty-list > revealer > box { background-color: transparent; }
 .butmail .conversation-list row { padding: 0; }
+.butmail .conversation-list row:focus-visible { outline: none; box-shadow: none; }
 .butmail .conversation-row { padding: 16px 14px; }
 .butmail .unread-dot {
     min-width: 8px;
@@ -137,3 +138,9 @@
 .sender-avatar avatar.color13 { background-color: #a83c98; }
 .sender-avatar avatar.color14 { background-color: #6e6d71; }
 .sender-avatar avatar.image { background-color: #fff; }
+
+/* ----- Recipient Suggestions ----- */
+list.recipient-suggestions > row:selected {
+    background-color: var(--accent-bg-color);
+    color: var(--accent-fg-color);
+}

@@ -3,6 +3,19 @@
  */
 
 public class ButMail.BackendFolders : Object {
+    public static async Camel.Folder? trash_folder (Camel.Store store, Cancellable? cancellable = null) throws Error {
+        var settings = store.ref_settings ();
+        var klass = (ObjectClass) settings.get_type ().class_ref ();
+        if (klass.find_property ("real-trash-path") != null) {
+            string? path;
+            settings.get ("real-trash-path", out path);
+            if (path != null && path != "") {
+                return yield store.get_folder (path, Camel.StoreGetFolderFlags.NONE, Priority.DEFAULT, cancellable);
+            }
+        }
+        return yield store.get_trash_folder (Priority.DEFAULT, cancellable);
+    }
+
     public static bool valid_name (string name) {
         var value = name.strip ();
         return value != "" && value != "." && value != ".."
@@ -61,7 +74,7 @@ public class ButMail.BackendFolders : Object {
             throw new IOError.NOT_FOUND (("The folder no longer exists."));
         }
         validate_tree (store, source);
-        var trash = yield store.get_trash_folder (Priority.DEFAULT, cancellable);
+        var trash = yield trash_folder (store, cancellable);
         if (trash == null || trash is Camel.VTrashFolder || is_within (path, trash.full_name)
             || is_within (trash.full_name, path)) {
             throw new IOError.NOT_SUPPORTED (("A separate server Trash folder is required to move this folder."));
