@@ -234,25 +234,10 @@ namespace ButMail {
             return result.to_string ();
         }
 
-        public void insert_signature (string account) {
-            var settings = new Settings (Application.ID);
-            string saved = Signatures.get_html (settings, account);
-            if (saved != "") {
-                execute ("InsertHTML", "<br><br>" + saved);
-                return;
-            }
-            var dialog = new Adw.AlertDialog ("Insert Signature", null);
-            var signature = new Gtk.TextView () { wrap_mode = Gtk.WrapMode.WORD_CHAR, height_request = 120 };
-            dialog.extra_child = new Gtk.Frame (null) { child = signature };
-            dialog.add_responses ("cancel", "Cancel", "insert", "Insert", null);
-            dialog.default_response = "insert";
-            dialog.close_response = "cancel";
-            dialog.response.connect ((response) => {
-                if (response == "insert" && signature.buffer.text != "") {
-                    execute ("InsertHTML", "<br><br>" + Markup.escape_text (signature.buffer.text).replace ("\n", "<br>"));
-                }
-            });
-            dialog.present (this);
+        public async void set_signature (string html, bool initial = false) throws Error {
+            string encoded = Base64.encode (html.data);
+            yield view.evaluate_javascript ("window.butMailSetSignature('%s', %s)".printf (encoded, initial ? "true" : "false"),
+                -1, WORLD, null, cancellable);
         }
 
         private void show_error (string message) {

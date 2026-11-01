@@ -11,21 +11,26 @@ namespace ButMail {
         public OnlineAccounts online_accounts { get; private set; }
         public AvatarStore avatars { get; private set; }
         public RecipientStore recipients { get; private set; }
+        public Signatures signatures { get; private set; }
         public bool quitting { get; private set; }
         private bool background_launch;
 
         public Application () {
-            Object (application_id: ID, flags: ApplicationFlags.DEFAULT_FLAGS);
+            Object (application_id: ID, flags: ApplicationFlags.HANDLES_COMMAND_LINE);
             add_main_option ("background", 0, OptionFlags.NONE, OptionArg.NONE, "Monitor mail without opening a window", null);
+            add_main_option ("get-new-mail", 0, OptionFlags.NONE, OptionArg.NONE, "Check for new mail", null);
+            add_main_option ("compose-message", 0, OptionFlags.NONE, OptionArg.NONE, "Compose a new message", null);
             settings = new Settings (ID);
             online_accounts = new OnlineAccounts ();
             recipients = new RecipientStore (Path.build_filename (Environment.get_user_data_dir (), ID, "recipient-history.gv"));
+            signatures = new Signatures ();
             avatars = new AvatarStore (settings);
             avatars.populate_recipients.begin (recipients);
         }
 
         protected override void startup () {
             base.startup ();
+            signatures.load.begin ();
             Gtk.Window.set_default_icon_name (ID);
             Gtk.IconTheme.get_for_display (Gdk.Display.get_default ()).add_resource_path (RESOURCE_PATH + "/icons");
             var css = new Gtk.CssProvider ();
@@ -46,6 +51,23 @@ namespace ButMail {
                 }
             });
             add_action (open_mail);
+            var get_new_mail = new SimpleAction ("get-new-mail", null);
+            get_new_mail.activate.connect (() => {
+                var window = find_main_window ();
+                if (window != null) { window.get_new_mail (); }
+                else { activate (); }
+            });
+            add_action (get_new_mail);
+            var compose_message = new SimpleAction ("compose-message", null);
+            compose_message.activate.connect (() => {
+                var window = find_main_window ();
+                if (window == null) {
+                    activate ();
+                    window = find_main_window ();
+                }
+                if (window != null) { window.compose_message (); }
+            });
+            add_action (compose_message);
             var preferences = new SimpleAction ("preferences", null);
             preferences.activate.connect (() => { new PreferencesDialog (online_accounts).present (active_window); });
             add_action (preferences);
@@ -99,6 +121,13 @@ namespace ButMail {
             set_accels_for_action ("win.reply-all", { "<Control><Shift>r" });
             set_accels_for_action ("win.forward", { "<Control><Shift>f" });
             set_accels_for_action ("app.preferences", { "<Control>comma" });
+            window_added.connect ((window) => {
+                var shortcuts = new Gtk.ShortcutController () { propagation_phase = Gtk.PropagationPhase.CAPTURE };
+                shortcuts.add_shortcut (new Gtk.Shortcut (
+                    new Gtk.KeyvalTrigger (Gdk.Key.comma, Gdk.ModifierType.CONTROL_MASK),
+                    new Gtk.NamedAction ("app.preferences")));
+                window.add_controller (shortcuts);
+            });
         }
 
         private void update_color_scheme () {
@@ -115,6 +144,21 @@ namespace ButMail {
             background_launch = options.contains ("background");
             if (background_launch && !settings.get_boolean ("run-in-background")) { return 0; }
             return -1;
+        }
+
+        protected override int command_line (ApplicationCommandLine command) {
+            var options = command.get_options_dict ();
+            if (options.contains ("get-new-mail")) { activate_action ("get-new-mail", null); }
+            else if (options.contains ("compose-message")) { activate_action ("compose-message", null); }
+            else if (!options.contains ("background") || find_main_window () == null) { activate (); }
+            return 0;
+        }
+
+        private MainWindow? find_main_window () {
+            foreach (var window in get_windows ()) {
+                if (window is MainWindow) { return (MainWindow) window; }
+            }
+            return null;
         }
 
         private void update_background () {

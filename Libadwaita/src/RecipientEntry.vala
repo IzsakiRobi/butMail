@@ -24,11 +24,10 @@ namespace ButMail {
             };
             popup.set_parent (this);
             changed.connect (queue_search);
-            notify["cursor-position"].connect (queue_search);
+            notify["cursor-position"].connect (() => { if (popup.visible) { queue_search (); } });
             weak RecipientEntry self = this;
-            store_handler = store.changed.connect (() => { if (self != null) { self.queue_search (); } });
+            store_handler = store.changed.connect (() => { if (self != null && self.popup.visible) { self.queue_search (); } });
             entry_focus = new Gtk.EventControllerFocus ();
-            entry_focus.enter.connect (queue_search);
             entry_focus.leave.connect (() => popup.popdown ());
             add_controller (entry_focus);
             var keys = new Gtk.EventControllerKey () { propagation_phase = Gtk.PropagationPhase.CAPTURE };
@@ -61,7 +60,7 @@ namespace ButMail {
         private void queue_search () {
             if (accepting) { return; }
             if (delay != 0) { Source.remove (delay); delay = 0; }
-            if (!entry_focus.contains_focus) { popup.popdown (); return; }
+            if (!entry_focus.contains_focus || !get_mapped ()) { popup.popdown (); return; }
             delay = Timeout.add (120, () => { delay = 0; show_matches (); return Source.REMOVE; });
         }
 

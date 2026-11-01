@@ -29,6 +29,9 @@ namespace ButMail {
         private Gtk.Entry bcc;
         private Gtk.Entry subject;
         private RichTextEditor editor;
+        private Signatures signatures;
+        private Settings settings;
+        private bool signature_initialized;
         private string[] initial_fields;
         private uint initial_sender;
         private bool discard_confirmed;
@@ -44,6 +47,8 @@ namespace ButMail {
                     default_width: 800, default_height: 760, width_request: 360, height_request: 480);
             this.backend = backend;
             this.accounts = accounts;
+            signatures = ((Application) app).signatures;
+            settings = ((Application) app).settings;
             var toolbar = new Adw.ToolbarView ();
             var window_title = new Adw.WindowTitle ("New Message", selected_account);
             toolbar.add_top_bar (new Adw.HeaderBar () { title_widget = window_title });
@@ -70,8 +75,8 @@ namespace ButMail {
             var to_box = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
             to_box.add_css_class ("linked");
             to_box.append (recipient);
-            var show_cc = new Gtk.ToggleButton.with_label ("Cc") { tooltip_text = "Show Cc" };
-            var show_bcc = new Gtk.ToggleButton.with_label ("Bcc") { tooltip_text = "Show Bcc" };
+            var show_cc = new Gtk.ToggleButton.with_label ("Cc") { tooltip_text = "Show Cc", focusable = false, focus_on_click = false };
+            var show_bcc = new Gtk.ToggleButton.with_label ("Bcc") { tooltip_text = "Show Bcc", focusable = false, focus_on_click = false };
             to_box.append (show_cc);
             to_box.append (show_bcc);
             add_field (fields, labels, "To:", to_box);
@@ -126,7 +131,7 @@ namespace ButMail {
                         show_cc.active = additional.length () > 0;
                     }
                     string quoted = message.is_html ? message.body : Markup.escape_text (message.body).replace ("\n", "<br>");
-                    initial_body = "<br><br><blockquote><p>From: %s &lt;%s&gt;<br>To: %s<br>Date: %s<br>Subject: %s</p>%s</blockquote>".printf (
+                    initial_body = "<p style=\"margin: 0 0 16px !important; padding: 0 !important; text-indent: 0 !important;\"><br></p><blockquote><p>From: %s &lt;%s&gt;<br>To: %s<br>Date: %s<br>Subject: %s</p>%s</blockquote>".printf (
                         Markup.escape_text (message.sender), Markup.escape_text (message.address), Markup.escape_text (message.recipient),
                         Markup.escape_text (message.time_label), Markup.escape_text (conversation.subject), quoted);
                 }
@@ -147,13 +152,44 @@ namespace ButMail {
             var attach = new Gtk.Button.from_icon_name ("mail-attachment-symbolic") { tooltip_text = "Attach File" };
             attach.clicked.connect (() => choose_attachments.begin ());
             actions.pack_start (attach);
-            var signature = new Gtk.Button.from_icon_name ("document-edit-symbolic") { tooltip_text = "Insert Signature" };
-            signature.clicked.connect (() => {
-                if (sender.selected != Gtk.INVALID_LIST_POSITION) {
-                    editor.insert_signature (((Folder) accounts.get_item (sender.selected)).account);
+            var signature_menu = new Menu ();
+            var signature_popup = new Gtk.PopoverMenu.from_model (signature_menu);
+            var signature = new Gtk.MenuButton () {
+                icon_name = "document-edit-symbolic", tooltip_text = "Signature", popover = signature_popup
+            };
+            var insert_signature = new SimpleAction ("signature", VariantType.STRING);
+            insert_signature.activate.connect ((target) => {
+                if (target != null) { apply_signature.begin (target.get_string ()); }
+            });
+            add_action (insert_signature);
+            var create_signature = new SimpleAction ("new-signature", null);
+            create_signature.activate.connect (() => { new SignatureDialog (signatures).present (this); });
+            add_action (create_signature);
+            signature_popup.map.connect (() => {
+                signature_menu.remove_all ();
+                signature_menu.append ("None", "win.signature::none");
+                for (uint i = 0; i < signatures.items.get_n_items (); i++) {
+                    var saved = (Signature) signatures.items.get_item (i);
+                    var item = new MenuItem (saved.name, null);
+                    item.set_action_and_target_value ("win.signature", new Variant.string (saved.id));
+                    signature_menu.append_item (item);
                 }
+                var manage = new Menu ();
+                manage.append ("New Signature…", "win.new-signature");
+                signature_menu.append_section (null, manage);
             });
             actions.pack_start (signature);
+            editor.notify["ready"].connect (() => initialize_signature (mode));
+            if (!signatures.ready) {
+                ulong ready_handler = 0;
+                ready_handler = signatures.notify["ready"].connect (() => {
+                    signatures.disconnect (ready_handler);
+                    initialize_signature (mode);
+                });
+            }
+            sender.notify["selected"].connect (() => {
+                if (signature_initialized) { apply_signature.begin (); }
+            });
             var send_content = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 6);
             send_content.append (new Gtk.Image.from_icon_name ("mail-send-symbolic"));
             send_content.append (new Gtk.Label ("Send"));
@@ -182,6 +218,27 @@ namespace ButMail {
             ((Gtk.Widget) this).add_controller (keys);
             recipient.grab_focus ();
             backend.prepare_recipients.begin ();
+        }
+
+        /* ----- Signatures ----- */
+        private void initialize_signature (ComposeMode mode) {
+            if (signature_initialized || !editor.ready || !signatures.ready) { return; }
+            signature_initialized = true;
+            if (mode != ComposeMode.DRAFT && !editor.modified) { apply_signature.begin (null, true); }
+        }
+
+        private async void apply_signature (string? id = null, bool initial = false) {
+            if (!editor.ready || sender.selected == Gtk.INVALID_LIST_POSITION) { return; }
+            string account = ((Folder) accounts.get_item (sender.selected)).account;
+            string html = signatures.html_for (id ?? signatures.default_id (settings, account));
+            try { yield editor.set_signature (html, initial); }
+            catch (Error error) {
+                if (!(error is IOError.CANCELLED)) {
+                    var dialog = new Adw.AlertDialog ("Unable to Insert Signature", error.message);
+                    dialog.add_response ("close", "Close");
+                    dialog.present (this);
+                }
+            }
         }
 
         /* ----- Background Submission ----- */

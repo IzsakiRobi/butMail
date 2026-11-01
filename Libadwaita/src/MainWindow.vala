@@ -42,6 +42,7 @@ namespace ButMail {
         private Gtk.Box connection_dot;
         private SimpleAction refresh_action;
         private bool connecting = true;
+        private bool compose_pending;
         private ulong loading_handler;
         private Cancellable folder_loading = new Cancellable ();
         private Cancellable message_loading = new Cancellable ();
@@ -320,6 +321,10 @@ namespace ButMail {
                 folder_loading = new Cancellable ();
                 if (current_folder != null && loading_handler != 0) { current_folder.disconnect (loading_handler); }
                 current_folder = folder;
+                if (compose_pending) {
+                    compose_pending = false;
+                    open_composer (ComposeMode.NEW);
+                }
                 loading_handler = folder.notify["loading"].connect (update_refresh_state);
                 update_refresh_state ();
                 empty_trash_action.set_enabled (operations.can_empty_trash (folder));
@@ -595,6 +600,15 @@ namespace ButMail {
             }
             move_toast = toast;
             toast_overlay.add_toast (toast);
+        }
+
+        public void get_new_mail () {
+            backend.refresh_inboxes.begin ();
+        }
+
+        public void compose_message () {
+            if (current_folder == null) { compose_pending = true; }
+            else { open_composer (ComposeMode.NEW); }
         }
 
         private void open_composer (ComposeMode mode, Message? source_message = null) {

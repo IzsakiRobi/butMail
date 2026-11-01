@@ -10,3 +10,12 @@ Keywords=Mail;Email;IMAP;SMTP;
 StartupNotify=true
 X-GNOME-UsesNotifications=true
 DBusActivatable=true
+Actions=get-new-mail;compose-message;
+
+[Desktop Action get-new-mail]
+Name=Get New Mail
+Exec=io.github.IzsakiRobi.butMail --get-new-mail
+
+[Desktop Action compose-message]
+Name=Compose Message
+Exec=io.github.IzsakiRobi.butMail --compose-message

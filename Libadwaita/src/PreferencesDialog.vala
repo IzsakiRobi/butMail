@@ -18,7 +18,7 @@ namespace ButMail {
         private bool finished;
 
         public PreferencesDialog (OnlineAccounts online_accounts) {
-            Object (title: "Preferences", content_width: 840, content_height: 720);
+            Object (title: "Preferences", content_width: 680, content_height: 720);
             pending = new Settings (Application.ID);
             pending.delay ();
             var app = (Application) GLib.Application.get_default ();
@@ -28,7 +28,7 @@ namespace ButMail {
             var pages = new Adw.ViewStack ();
             var switcher = new Adw.ViewSwitcher () { stack = pages, policy = Adw.ViewSwitcherPolicy.WIDE };
             var header = new Adw.HeaderBar () {
-                title_widget = switcher,
+                title_widget = switcher, centering_policy = Adw.CenteringPolicy.STRICT,
                 show_start_title_buttons = false, show_end_title_buttons = false
             };
             cancel_button = new Gtk.Button.with_label ("Cancel");
@@ -38,6 +38,9 @@ namespace ButMail {
             save_button.add_css_class ("suggested-action");
             save_button.clicked.connect (() => save.begin ());
             header.pack_end (save_button);
+            var header_buttons = new Gtk.SizeGroup (Gtk.SizeGroupMode.HORIZONTAL);
+            header_buttons.add_widget (cancel_button);
+            header_buttons.add_widget (save_button);
             toolbar.add_top_bar (header);
             var view_page = new Adw.PreferencesPage ();
             var reading_page = new Adw.PreferencesPage ();
@@ -54,14 +57,12 @@ namespace ButMail {
             appearance.add (scheme);
             view_page.add (appearance);
 
-            var remote = new Adw.PreferencesGroup () { title = "Remote Content" };
-            remote.add (switch_row ("Always Load Remote Images", "always-load-remote-images"));
             var avatars = switch_row ("Show Avatars", "show-avatars");
-            remote.add (avatars);
+            appearance.add (avatars);
             var logos = switch_row ("Load Avatars and Company Logos", "load-remote-avatars");
             avatars.bind_property ("active", logos, "sensitive", BindingFlags.SYNC_CREATE);
-            remote.add (logos);
-            view_page.add (remote);
+            appearance.add (logos);
+            appearance.add (switch_row ("Always Load Remote Images", "always-load-remote-images"));
 
             var key = new Adw.PreferencesGroup () {
                 title = "Logo.dev API Key",
@@ -80,7 +81,15 @@ namespace ButMail {
             key.add (new Gtk.Label ("Create a free <a href=\"https://logo.dev\">Logo.dev</a> account for high-resolution company logos.") {
                 use_markup = true, xalign = 0, wrap = true, margin_top = 8
             });
-            view_page.add (key);
+            var sources = new Adw.PreferencesGroup () { title = "Logo Sources" };
+            var show_sources = new Adw.ExpanderRow () { title = "Sources" };
+            key.margin_top = 12;
+            key.margin_bottom = 12;
+            key.margin_start = 12;
+            key.margin_end = 12;
+            show_sources.add_row (key);
+            sources.add (show_sources);
+            view_page.add (sources);
             key_entry.changed.connect (() => {
                 if (!filling_key) {
                     key_dirty = true;
@@ -116,14 +125,20 @@ namespace ButMail {
 
             var signatures = new Adw.PreferencesGroup () { title = "Signatures" };
             var signature_rows = new GenericArray<Adw.ActionRow> ();
-            pending.changed["account-signatures"].connect (() =>
-                update_signatures (online_accounts, signatures, signature_rows));
+            var new_signature = new Gtk.Button.with_label ("New…") { valign = Gtk.Align.CENTER };
+            signatures.header_suffix = new_signature;
+            new_signature.clicked.connect (() => { new SignatureDialog (app.signatures).present (this); });
+            ulong signatures_handler = app.signatures.changed.connect (() => {
+                update_signatures (online_accounts, signatures, signature_rows);
+                new_signature.sensitive = app.signatures.ready;
+            });
             ulong accounts_handler = online_accounts.changed.connect (() => {
                 update_accounts (online_accounts, account_status, accounts, detected);
                 update_signatures (online_accounts, signatures, signature_rows);
             });
             update_accounts (online_accounts, account_status, accounts, detected);
             update_signatures (online_accounts, signatures, signature_rows);
+            new_signature.sensitive = app.signatures.ready;
             accounts_page.add (signatures);
 
             var system = new Adw.PreferencesGroup () { title = "System" };
@@ -135,6 +150,7 @@ namespace ButMail {
                 finished = true;
                 pending.revert ();
                 app.preview_color_scheme (app.settings.get_uint ("color-scheme"));
+                app.signatures.disconnect (signatures_handler);
                 credentials.disconnect (key_handler);
                 online_accounts.disconnect (accounts_handler);
             });
@@ -191,24 +207,69 @@ namespace ButMail {
 
         private void update_signatures (OnlineAccounts accounts, Adw.PreferencesGroup group,
                                         GenericArray<Adw.ActionRow> rows) {
+            var signatures = ((Application) GLib.Application.get_default ()).signatures;
             while (rows.length > 0) {
                 group.remove (rows[0]);
                 rows.remove_index (0);
             }
-            for (uint i = 0; i < accounts.accounts.get_n_items (); i++) {
-                var account = (OnlineAccount) accounts.accounts.get_item (i);
-                var row = new Adw.ActionRow () {
-                    title = account.identity, use_markup = false,
-                    subtitle = Signatures.get_html (pending, account.identity) == "" ? "No signature" : "Signature configured"
-                };
+            group.description = signatures.error_message ?? (!signatures.ready ? "Loading signatures…" : null);
+            for (uint i = 0; i < signatures.items.get_n_items (); i++) {
+                var signature = (Signature) signatures.items.get_item (i);
+                var row = new Adw.ActionRow () { title = signature.name, use_markup = false };
                 var edit = new Gtk.Button.with_label ("Edit…") { valign = Gtk.Align.CENTER };
-                edit.clicked.connect (() => { new SignatureDialog (pending, account.identity).present (this); });
+                edit.clicked.connect (() => { new SignatureDialog (signatures, signature).present (this); });
+                var remove = new Gtk.Button.from_icon_name ("user-trash-symbolic") {
+                    tooltip_text = "Delete Signature", valign = Gtk.Align.CENTER
+                };
+                remove.clicked.connect (() => remove_signature (signatures, signature));
                 row.add_suffix (edit);
+                row.add_suffix (remove);
                 row.activatable_widget = edit;
                 group.add (row);
                 rows.add (row);
             }
-            group.visible = rows.length > 0;
+            for (uint i = 0; i < accounts.accounts.get_n_items (); i++) {
+                var account = (OnlineAccount) accounts.accounts.get_item (i);
+                var names = new Gtk.StringList ({ "None" });
+                string[] ids = { "none" };
+                for (uint j = 0; j < signatures.items.get_n_items (); j++) {
+                    var signature = (Signature) signatures.items.get_item (j);
+                    names.append (signature.name);
+                    ids += signature.id;
+                }
+                uint selected = 0;
+                string current = signatures.default_id (pending, account.identity);
+                for (uint j = 0; j < ids.length; j++) { if (ids[j] == current) { selected = j; } }
+                var row = new Adw.ComboRow () {
+                    title = account.identity, subtitle = "Default signature", use_markup = false,
+                    model = names, selected = selected, sensitive = signatures.ready
+                };
+                row.notify["selected"].connect (() => {
+                    if (row.selected < ids.length) { Signatures.set_default (pending, account.identity, ids[row.selected]); }
+                });
+                group.add (row);
+                rows.add (row);
+            }
+        }
+
+        private void remove_signature (Signatures signatures, Signature signature) {
+            var dialog = new Adw.AlertDialog ("Delete Signature?", signature.name);
+            dialog.add_responses ("cancel", "Cancel", "delete", "Delete", null);
+            dialog.default_response = "cancel";
+            dialog.close_response = "cancel";
+            dialog.set_response_appearance ("delete", Adw.ResponseAppearance.DESTRUCTIVE);
+            dialog.response.connect ((response) => {
+                if (response != "delete") { return; }
+                signatures.remove.begin (signature, (obj, result) => {
+                    try { signatures.remove.end (result); }
+                    catch (Error error) {
+                        var failure = new Adw.AlertDialog ("Unable to Delete Signature", error.message);
+                        failure.add_response ("close", "Close");
+                        failure.present (this);
+                    }
+                });
+            });
+            dialog.present (this);
         }
 
         private void fill_key () {

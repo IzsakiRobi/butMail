@@ -43,15 +43,26 @@ namespace ButMail {
         private void rebuild () {
             accounts.remove_all ();
             foreach (var item in manager.get_objects ()) {
-                if (item.get_interface ("org.gnome.OnlineAccounts.Mail") == null) {
-                    continue;
-                }
+                var mail = item.get_interface ("org.gnome.OnlineAccounts.Mail") as DBusProxy;
+                if (mail == null) { continue; }
                 var account = item.get_interface ("org.gnome.OnlineAccounts.Account") as DBusProxy;
                 if (account != null) {
-                    var identity = account.get_cached_property ("PresentationIdentity");
+                    var identity = mail.get_cached_property ("EmailAddress") ?? account.get_cached_property ("Identity");
                     var provider = account.get_cached_property ("ProviderName");
-                    if (identity != null) {
-                        accounts.append (new OnlineAccount (identity.get_string (), provider != null ? provider.get_string () : "Online Account"));
+                    if (identity != null && identity.get_string ().strip () != "") {
+                        string address = identity.get_string ().strip ();
+                        var presentation = account.get_cached_property ("PresentationIdentity");
+                        if (presentation != null) {
+                            string previous = presentation.get_string ().strip ().down ();
+                            var settings = new Settings (Application.ID);
+                            var defaults = settings.get_value ("default-signatures");
+                            var saved = defaults.lookup_value (previous, VariantType.STRING);
+                            if (previous != address.down () && saved != null) {
+                                var current = defaults.lookup_value (address.down (), VariantType.STRING);
+                                Signatures.set_default (settings, address, current != null ? current.get_string () : saved.get_string (), previous);
+                            }
+                        }
+                        accounts.append (new OnlineAccount (address, provider != null ? provider.get_string () : "Online Account"));
                     }
                 }
             }

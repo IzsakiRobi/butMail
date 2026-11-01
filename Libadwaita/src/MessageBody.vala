@@ -51,6 +51,7 @@ namespace ButMail {
             page.add_css_class ("butmail-reader-surface");
             page.add_overlay (loading);
             view.height_request = 160;
+            view.focus_on_click = false;
             view.set_background_color (Gdk.RGBA () { alpha = 0 });
             weak WebKit.WebView weak_view = view;
             var web_settings = view.get_settings ();
@@ -69,20 +70,23 @@ namespace ButMail {
                 }
             });
             manager.add_script (new WebKit.UserScript.for_world (
+                "document.addEventListener('mousedown', event => { if (event.target.closest('a[href]')) event.preventDefault(); }, true);" +
                 "new ResizeObserver(() => { window.webkit.messageHandlers.height.postMessage(Math.ceil(document.body.getBoundingClientRect().height) + 40); }).observe(document.body);",
                 WebKit.UserContentInjectedFrames.TOP_FRAME, WebKit.UserScriptInjectionTime.END,
                 "butmail-reader", null, null));
             view.decide_policy.connect ((decision, type) => {
-                if (type == WebKit.PolicyDecisionType.NEW_WINDOW_ACTION) { decision.ignore (); return true; }
-                if (type != WebKit.PolicyDecisionType.NAVIGATION_ACTION) { return false; }
+                if (type != WebKit.PolicyDecisionType.NAVIGATION_ACTION &&
+                    type != WebKit.PolicyDecisionType.NEW_WINDOW_ACTION) { return false; }
                 var navigation = ((WebKit.NavigationPolicyDecision) decision).navigation_action;
                 string uri = navigation.get_request ().get_uri ();
-                if (navigation.get_navigation_type () == WebKit.NavigationType.LINK_CLICKED &&
+                if (type == WebKit.PolicyDecisionType.NAVIGATION_ACTION && uri == "about:blank" &&
+                    navigation.get_navigation_type () != WebKit.NavigationType.LINK_CLICKED) { return false; }
+                decision.ignore ();
+                if ((navigation.get_navigation_type () == WebKit.NavigationType.LINK_CLICKED || navigation.is_user_gesture ()) &&
                     (uri.has_prefix ("https://") || uri.has_prefix ("http://") || uri.has_prefix ("mailto:"))) {
-                    new Gtk.UriLauncher (uri).launch.begin (get_root () as Gtk.Window, null);
+                    open_link.begin (uri);
                 }
-                if (uri != "about:blank") { decision.ignore (); return true; }
-                return false;
+                return true;
             });
             view.context_menu.connect (() => { return true; });
             bool remote_images = ((Application) GLib.Application.get_default ()).settings.get_boolean ("always-load-remote-images");
@@ -97,6 +101,18 @@ namespace ButMail {
                 }
             });
             append (page);
+        }
+
+        private async void open_link (string uri) {
+            var parent = get_root () as Gtk.Window;
+            try {
+                yield new Gtk.UriLauncher (uri).launch (parent, null);
+            } catch (Error error) {
+                if (error is IOError.CANCELLED || error is Gtk.DialogError.DISMISSED) { return; }
+                var dialog = new Adw.AlertDialog ("Unable to Open Link", error.message);
+                dialog.add_response ("close", "Close");
+                dialog.present (parent);
+            }
         }
 
         protected override void dispose () {
