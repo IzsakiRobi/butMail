@@ -70,7 +70,8 @@ namespace ButMail {
             }
             content_box.append (cards);
             var clamp = new Adw.Clamp () { maximum_size = 860, tightening_threshold = 600, child = content_box };
-            page = new Gtk.ScrolledWindow () { child = clamp, hscrollbar_policy = Gtk.PolicyType.NEVER };
+            var viewport = new Gtk.Viewport (null, null) { child = clamp, scroll_to_focus = false };
+            page = new Gtk.ScrolledWindow () { child = viewport, hscrollbar_policy = Gtk.PolicyType.NEVER };
             stack.add_child (page);
             pages.insert (conversation, page);
             recent.add (conversation);

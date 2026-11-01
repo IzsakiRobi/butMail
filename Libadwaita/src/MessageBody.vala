@@ -51,7 +51,6 @@ namespace ButMail {
             page.add_css_class ("butmail-reader-surface");
             page.add_overlay (loading);
             view.height_request = 160;
-            view.focus_on_click = false;
             view.set_background_color (Gdk.RGBA () { alpha = 0 });
             weak WebKit.WebView weak_view = view;
             var web_settings = view.get_settings ();
@@ -70,7 +69,8 @@ namespace ButMail {
                 }
             });
             manager.add_script (new WebKit.UserScript.for_world (
-                "document.addEventListener('mousedown', event => { if (event.target.closest('a[href]')) event.preventDefault(); }, true);" +
+                "for (const link of document.querySelectorAll('a[href],area[href]')) {" +
+                "const href = link.getAttribute('href').trim(); if (href.startsWith('//')) link.setAttribute('href', 'https:' + href); }" +
                 "new ResizeObserver(() => { window.webkit.messageHandlers.height.postMessage(Math.ceil(document.body.getBoundingClientRect().height) + 40); }).observe(document.body);",
                 WebKit.UserContentInjectedFrames.TOP_FRAME, WebKit.UserScriptInjectionTime.END,
                 "butmail-reader", null, null));

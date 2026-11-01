@@ -121,13 +121,6 @@ namespace ButMail {
             set_accels_for_action ("win.reply-all", { "<Control><Shift>r" });
             set_accels_for_action ("win.forward", { "<Control><Shift>f" });
             set_accels_for_action ("app.preferences", { "<Control>comma" });
-            window_added.connect ((window) => {
-                var shortcuts = new Gtk.ShortcutController () { propagation_phase = Gtk.PropagationPhase.CAPTURE };
-                shortcuts.add_shortcut (new Gtk.Shortcut (
-                    new Gtk.KeyvalTrigger (Gdk.Key.comma, Gdk.ModifierType.CONTROL_MASK),
-                    new Gtk.NamedAction ("app.preferences")));
-                window.add_controller (shortcuts);
-            });
         }
 
         private void update_color_scheme () {
