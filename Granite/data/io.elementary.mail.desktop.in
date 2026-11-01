@@ -10,7 +10,7 @@ MimeType=x-scheme-handler/mailto;
 StartupNotify=true
 Categories=GNOME;GTK;Network;Email;
 X-GNOME-UsesNotifications=true
-Actions=Compose;GetNewMail;
+Actions=GetNewMail;Compose;
 
 [Desktop Action Compose]
 Name=Compose Message

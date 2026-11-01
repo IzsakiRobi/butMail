@@ -63,7 +63,8 @@ public class Mail.Page : Object {
                 'letter-spacing', 'text-align', 'text-decoration', 'text-transform',
                 'white-space', 'vertical-align', 'direction', 'border-collapse',
                 'border-spacing', 'table-layout', 'box-sizing', 'max-width',
-                'min-width', 'max-height', 'list-style-type'
+                'min-width', 'min-height', 'max-height', 'list-style-type',
+                'text-indent', 'overflow-wrap', 'word-break'
             ];
             const sides = ['top', 'right', 'bottom', 'left'];
             for (const side of sides) {
@@ -78,9 +79,13 @@ public class Mail.Page : Object {
             const copies = [copy, ...copy.querySelectorAll('*')];
             originals.forEach((element, index) => {
                 const style = getComputedStyle(element);
-                for (const property of properties) {
+                const layout = element.matches('table, col, colgroup, td, th, img, svg, video')
+                    ? ['width', 'height'] : [];
+                for (const property of [...properties, ...layout]) {
+                    if (!copies[index].style || element.style.getPropertyValue(property)) continue;
+                    if ((property === 'width' || property === 'height') && element.hasAttribute(property)) continue;
                     const value = style.getPropertyValue(property);
-                    if (value && copies[index].style) copies[index].style.setProperty(property, value);
+                    if (value) copies[index].style.setProperty(property, value);
                 }
             });
             copy.querySelectorAll('script, style, link[rel="stylesheet"]').forEach(element => element.remove());
@@ -88,7 +93,6 @@ public class Mail.Page : Object {
             for (const attribute of copy.attributes) wrapper.setAttribute(attribute.name, attribute.value);
             wrapper.removeAttribute('contenteditable');
             wrapper.removeAttribute('id');
-            wrapper.style.margin = '0';
             while (copy.firstChild) wrapper.appendChild(copy.firstChild);
             return wrapper.outerHTML;
         })();

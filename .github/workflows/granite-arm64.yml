@@ -1,0 +1,134 @@
+name: Granite ARM64
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deb:
+    name: Granite Debian aarch64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: |
+          test "$(uname -m)" = aarch64
+          sudo apt-get update
+          sudo apt-get install -y build-essential dpkg-dev dh-apparmor binutils
+          sudo apt-get build-dep -y ./Granite
+
+      - name: Build Debian package
+        working-directory: Granite
+        env:
+          DEB_BUILD_OPTIONS: nocheck parallel=4
+        run: dpkg-buildpackage -b -us -uc 2>&1 | tee "$RUNNER_TEMP/granite-deb.log"
+
+      - name: Verify package architecture and libraries
+        run: |
+          version=$(dpkg-parsechangelog -l Granite/debian/changelog -S Version)
+          package="butmail_${version}_arm64.deb"
+          test "$(dpkg-deb -f "$package" Architecture)" = arm64
+          dpkg-deb -x "$package" "$RUNNER_TEMP/deb-check"
+          binary="$RUNNER_TEMP/deb-check/usr/bin/io.github.IzsakiRobi.butMail"
+          readelf -h "$binary" | grep 'Machine:.*AArch64'
+          ldd "$binary" | tee "$RUNNER_TEMP/granite-linkage.log"
+          if grep -q 'not found' "$RUNNER_TEMP/granite-linkage.log"; then exit 1; fi
+          mkdir dist
+          cp "$package" "dist/butMail-${version}.elementary.aarch64.deb"
+          cd dist
+          sha256sum ./*.deb > SHA256SUMS
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: butMail-granite-aarch64-deb
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: granite-aarch64-deb-logs
+          path: |
+            ${{ runner.temp }}/granite-deb.log
+            ${{ runner.temp }}/granite-linkage.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  flatpak:
+    name: Granite Flatpak aarch64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Install Flatpak build tools
+        run: |
+          test "$(uname -m)" = aarch64
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder binutils
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive -y flathub org.gnome.Sdk//49 org.gnome.Platform//49
+
+      - name: Restore builder cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ~/.cache/butmail-granite-flatpak
+          key: granite-aarch64-gnome49-${{ hashFiles('Granite/io.github.IzsakiRobi.butMail.json') }}-${{ github.sha }}
+          restore-keys: |
+            granite-aarch64-gnome49-${{ hashFiles('Granite/io.github.IzsakiRobi.butMail.json') }}-
+
+      - name: Build Flatpak
+        run: |
+          flatpak-builder --user --arch=aarch64 --force-clean --disable-rofiles-fuse --jobs=4 \
+            --state-dir="$HOME/.cache/butmail-granite-flatpak" \
+            --repo="$RUNNER_TEMP/flatpak-repo" "$RUNNER_TEMP/flatpak-build" \
+            Granite/io.github.IzsakiRobi.butMail.json 2>&1 | tee "$RUNNER_TEMP/granite-flatpak.log"
+
+      - name: Verify architecture and bundle Flatpak
+        run: |
+          binary="$RUNNER_TEMP/flatpak-build/files/bin/io.github.IzsakiRobi.butMail"
+          readelf -h "$binary" | grep 'Machine:.*AArch64'
+          grep '^runtime=org.gnome.Platform/aarch64/49$' "$RUNNER_TEMP/flatpak-build/metadata"
+          version=$(dpkg-parsechangelog -l Granite/debian/changelog -S Version)
+          mkdir dist
+          flatpak build-bundle --arch=aarch64 \
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+            "$RUNNER_TEMP/flatpak-repo" "dist/butMail-${version}.elementary.aarch64.flatpak" \
+            io.github.IzsakiRobi.butMail stable
+          cd dist
+          sha256sum ./*.flatpak > SHA256SUMS
+
+      - name: Upload Flatpak package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: butMail-granite-aarch64-flatpak
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: granite-aarch64-flatpak-logs
+          path: ${{ runner.temp }}/granite-flatpak.log
+          if-no-files-found: ignore
+          retention-days: 7

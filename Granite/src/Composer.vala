@@ -732,7 +732,8 @@ public class Mail.Composer : Hdy.ApplicationWindow {
                     }
                 }
             } else {
-                string message_content = "";
+                web_view.set_content_of_element ("#elementary-message-body", "<p style=\"margin:0\"><br></p>");
+                string message_content = "<div style=\"padding:0 16px 12px\">";
                 string date_format = _("%a, %b %-e, %Y at %-l:%M %p");
                 if (type == Type.REPLY || type == Type.REPLY_ALL) {
                     var reply_to = message.get_reply_to ();
@@ -764,7 +765,7 @@ public class Mail.Composer : Hdy.ApplicationWindow {
                     string when = new DateTime.from_unix_utc (info.date_received).format (date_format);
                     string who = Utils.escape_html_tags (message.get_from ().format ());
                     message_content += _("On %1$s, %2$s wrote:").printf (when, who);
-                    message_content += "<br/>";
+                    message_content += "</div>";
                     message_content += "<blockquote type=\"cite\" style=\"margin:0;padding:0;border:0\">%s</blockquote>".printf (content_to_quote);
                 } else if (type == Type.FORWARD) {
                     message_content += _("---------- Forwarded message ----------");
@@ -777,7 +778,7 @@ public class Mail.Composer : Hdy.ApplicationWindow {
                         message_content += _("Cc: %s<br/>").printf (Utils.escape_html_tags (info.cc));
                     }
 
-                    message_content += "<br/><br/>";
+                    message_content += "</div>";
                     message_content += content_to_quote;
 
                 }

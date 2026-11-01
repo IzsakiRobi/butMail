@@ -19,6 +19,7 @@
  */
 
 public class Mail.MessageListItem : Gtk.ListBoxRow {
+    public signal void address_copied ();
     public bool loaded { get; private set; }
     public Camel.MessageInfo message_info { get; construct set; }
     public Camel.MimeMessage? mime_message { get; private set; default = null; }
@@ -134,15 +135,8 @@ public class Mail.MessageListItem : Gtk.ListBoxRow {
         };
         subject_label.get_style_context ().add_class (Gtk.STYLE_CLASS_DIM_LABEL);
 
-        var from_val_label = new Gtk.Label (message_info.from) {
-            wrap = true,
-            xalign = 0
-        };
-
-        var to_val_label = new Gtk.Label (message_info.to) {
-            wrap = true,
-            xalign = 0
-        };
+        var from_val_label = address_values (message_info.from);
+        var to_val_label = address_values (message_info.to);
 
         var subject_val_label = new Gtk.Label (message_info.subject) {
             wrap = true,
@@ -168,19 +162,13 @@ public class Mail.MessageListItem : Gtk.ListBoxRow {
             };
             cc_label.get_style_context ().add_class (Gtk.STYLE_CLASS_DIM_LABEL);
 
-            var cc_val_label = new Gtk.Label (cc_info) {
-                wrap = true,
-                xalign = 0
-            };
+            var cc_val_label = address_values (cc_info);
 
             fields_grid.attach (cc_label, 0, 2, 1, 1);
             fields_grid.attach (cc_val_label, 1, 2, 1, 1);
         }
 
-        var small_from_label = new Gtk.Label (message_info.from) {
-            ellipsize = END,
-            xalign = 0
-        };
+        var small_from_label = address_values (message_info.from, true);
 
         var small_fields_grid = new Gtk.Grid ();
         small_fields_grid.attach (small_from_label, 0, 0, 1, 1);
@@ -382,6 +370,14 @@ public class Mail.MessageListItem : Gtk.ListBoxRow {
         var click_gesture = new Gtk.GestureMultiPress (header_event_box);
 
         click_gesture.released.connect (() => {
+            var event = Gtk.get_current_event ();
+            if (event != null) {
+                var event_widget = Gtk.get_event_widget (event);
+                if (event_widget != null && (event_widget is Gtk.Button
+                    || event_widget.get_ancestor (typeof (Gtk.Button)) != null)) {
+                    return;
+                }
+            }
             expanded = !expanded;
             click_gesture.set_state (CLAIMED);
         });
@@ -412,6 +408,82 @@ public class Mail.MessageListItem : Gtk.ListBoxRow {
                 warning ("Failed to open link: %s", e.message);
             }
         });
+    }
+
+    /* ----- Address Clipboard ----- */
+
+    private Gtk.Widget address_values (string? text, bool compact = false) {
+        var addresses = new Camel.InternetAddress ();
+        var values = new Gtk.Box (VERTICAL, 2) { hexpand = true };
+        if (text == null || addresses.decode (text) <= 0) {
+            values.add (new Gtk.Label (text ?? "") { xalign = 0, wrap = !compact, ellipsize = compact ? Pango.EllipsizeMode.END : Pango.EllipsizeMode.NONE });
+            return values;
+        }
+
+        for (int i = 0; i < addresses.length (); i++) {
+            unowned string? name, email;
+            if (!addresses.get (i, out name, out email) || email == null || email == "") {
+                continue;
+            }
+            string address = email;
+            bool has_name = name != null && name != "" && name != address;
+            var detail = new Gtk.Box (VERTICAL, 2);
+            if (has_name && !compact) {
+                detail.add (new Gtk.Label (name) { xalign = 0, wrap = true, max_width_chars = 48 });
+            }
+            string label_text = address;
+            if (has_name) {
+                if (compact) {
+                    label_text = "%s <%s>".printf (name, address);
+                } else {
+                    label_text = "<%s>".printf (address);
+                }
+            }
+            var label = new Gtk.Label (label_text) {
+                xalign = 0, wrap = false, ellipsize = Pango.EllipsizeMode.END,
+                hexpand = false, max_width_chars = 48, tooltip_text = address
+            };
+            var image = new Gtk.Image.from_icon_name ("edit-copy-symbolic", Gtk.IconSize.MENU) { pixel_size = 12 };
+            var copy = new Gtk.Button () {
+                child = image, tooltip_text = _("Copy Email Address"),
+                valign = CENTER, focus_on_click = false, opacity = 0
+            };
+            copy.get_style_context ().add_class (Gtk.STYLE_CLASS_FLAT);
+            copy.get_style_context ().add_class ("address-copy");
+            var row = new Gtk.Box (HORIZONTAL, 6);
+            row.pack_start (label, false, true);
+            row.pack_start (copy, false, false);
+            var hover = new Gtk.EventBox () { visible_window = false, child = row };
+            bool hovered = false;
+            hover.enter_notify_event.connect ((event) => {
+                if (event.detail != Gdk.NotifyType.INFERIOR) {
+                    hovered = true;
+                    copy.opacity = 1;
+                }
+                return false;
+            });
+            hover.leave_notify_event.connect ((event) => {
+                if (event.detail != Gdk.NotifyType.INFERIOR) {
+                    hovered = false;
+                    update_copy_visibility (copy, hovered);
+                }
+                return false;
+            });
+            copy.state_flags_changed.connect (() => update_copy_visibility (copy, hovered));
+            copy.notify["has-focus"].connect (() => update_copy_visibility (copy, hovered));
+            copy.clicked.connect (() => {
+                Gtk.Clipboard.get (Gdk.SELECTION_CLIPBOARD).set_text (address, -1);
+                address_copied ();
+            });
+            detail.add (hover);
+            values.add (detail);
+        }
+        return values;
+    }
+
+    private static void update_copy_visibility (Gtk.Button copy, bool row_hovered) {
+        bool button_hovered = (copy.get_state_flags () & Gtk.StateFlags.PRELIGHT) != 0;
+        copy.opacity = row_hovered || button_hovered || copy.has_focus ? 1 : 0;
     }
 
     public void print () {

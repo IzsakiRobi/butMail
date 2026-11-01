@@ -6,6 +6,7 @@
  */
 
 public class Mail.MessageList : Gtk.Box {
+    public signal void address_copied ();
     public signal void hovering_over_link (string? label, string? uri);
     public Hdy.HeaderBar headerbar { get; private set; }
 
@@ -287,6 +288,7 @@ public class Mail.MessageList : Gtk.Box {
         }
         if (item == null) {
             item = new MessageListItem (info);
+            item.address_copied.connect (() => address_copied ());
         }
         return item;
     }

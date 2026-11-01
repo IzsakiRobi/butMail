@@ -141,6 +141,10 @@ public class Mail.MainWindow : Hdy.ApplicationWindow {
         error_toast = new Granite.Widgets.Toast ("");
         error_toast.show_all ();
         view_overlay.add_overlay (error_toast);
+        message_list.address_copied.connect (() => {
+            error_toast.title = _("Address copied");
+            error_toast.send_notification ();
+        });
 
         var message_overlay = new Granite.Widgets.OverlayBar (view_overlay);
         message_overlay.no_show_all = true;
