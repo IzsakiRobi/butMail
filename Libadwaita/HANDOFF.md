@@ -6,7 +6,7 @@
 - Repository: https://github.com/IzsakiRobi/butMail; version 0.5.
 - Source: `~/Projects/butMail`; external builds: `~/Projects/butMail-builds`.
 - Application, desktop and schema ID: `io.github.IzsakiRobi.butMail`.
-- App icon: `src/io.github.IzsakiRobi.butMail.svg`, provided by the user as `~/Projects/butMail-left.svg` (latest local icon update).
+- App icon: `src/io.github.IzsakiRobi.butMail.svg`, Adwaita-style tile built from the user's `butMail-full.svg` (source: `~/Projects/butMail_Linux/Icons/butMail-adwaita.svg`, 2026-11-13). `butMail-logo.png` is a 1024 px render of it.
 - The active build is GTK 4/libadwaita, Vala, WebKitGTK 6, Camel/EDS with GTK 4 credential UI and libsecret. Meson builds only `src/`. Retain the original licenses and attribution on reused code.
 - See `BUILDING.md` and `packaging/butMail.spec` for source/RPM builds. The README intentionally contains only the name and tagline.
 
