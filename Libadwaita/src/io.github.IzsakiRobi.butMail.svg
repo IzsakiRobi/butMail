@@ -8,22 +8,22 @@
 <filter id="flap-shadow-blur" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="29.8"/></filter>
 <filter id="fold-shadow-blur" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="6.2"/></filter>
 
-<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop stop-color="#0aa0ff"/><stop offset="1" stop-color="#0091fb"/></linearGradient>
-<linearGradient id="pocket" x1="0" y1="560" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop stop-color="#0a9cff"/><stop offset="1" stop-color="#0090fa"/></linearGradient>
-<radialGradient id="pocket-light" cx="512" cy="610" r="500" gradientTransform="translate(0 330) scale(1 0.45)" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity="0.17"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop stop-color="#4aa1f9"/><stop offset="1" stop-color="#3f8ff2"/></linearGradient>
+<linearGradient id="pocket" x1="0" y1="560" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop stop-color="#4a9ff8"/><stop offset="1" stop-color="#3f8ff3"/></linearGradient>
+<radialGradient id="pocket-light" cx="512" cy="610" r="500" gradientTransform="translate(0 330) scale(1 0.45)" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity="0.10"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
 
 <filter id="pocket-depth-blur" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
 <filter id="card-depth-blur" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
 <clipPath id="card-clip"><rect x="172" y="180" width="680" height="844" rx="165"/></clipPath>
 <filter id="stamp-deboss" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
-<feFlood flood-color="#00305f" flood-opacity="0.55"/><feComposite in2="SourceAlpha" operator="out"/><feGaussianBlur stdDeviation="2.2"/><feOffset dy="3"/><feComposite in2="SourceAlpha" operator="in" result="shade"/>
+<feFlood flood-color="#00305f" flood-opacity="0.38"/><feComposite in2="SourceAlpha" operator="out"/><feGaussianBlur stdDeviation="2.2"/><feOffset dy="3"/><feComposite in2="SourceAlpha" operator="in" result="shade"/>
 <feFlood flood-color="#ffffff" flood-opacity="0.35"/><feComposite in2="SourceAlpha" operator="out"/><feGaussianBlur stdDeviation="1.6"/><feOffset dy="-2.5"/><feComposite in2="SourceAlpha" operator="in" result="light"/>
 <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="shade"/><feMergeNode in="light"/></feMerge>
 </filter>
-
+<linearGradient id="card-glass" x1="0" y1="300" x2="0" y2="600" gradientUnits="userSpaceOnUse"><stop stop-color="#3d8ff0" stop-opacity="0"/><stop offset="1" stop-color="#3d8ff0" stop-opacity="0.12"/></linearGradient><linearGradient id="rim" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse"><stop stop-color="#fff" stop-opacity="0.45"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0.25"/></linearGradient>
 <linearGradient id="base-edge" x1="12" y1="0" x2="116" y2="0" gradientUnits="userSpaceOnUse">
-<stop offset="0" stop-color="#004f9e"/><stop offset="0.0417" stop-color="#1a8cf0"/><stop offset="0.0833" stop-color="#005fb8"/>
-<stop offset="0.9167" stop-color="#005fb8"/><stop offset="0.9583" stop-color="#1a8cf0"/><stop offset="1" stop-color="#004f9e"/>
+<stop offset="0" stop-color="#1a5aa8"/><stop offset="0.0417" stop-color="#62a8f6"/><stop offset="0.0833" stop-color="#2368c4"/>
+<stop offset="0.9167" stop-color="#2368c4"/><stop offset="0.9583" stop-color="#62a8f6"/><stop offset="1" stop-color="#1a5aa8"/>
 </linearGradient>
 <linearGradient id="rim-light" x1="0" y1="16" x2="0" y2="112" gradientUnits="userSpaceOnUse">
 <stop offset="0" stop-color="#fff" stop-opacity="0.6"/><stop offset="0.12" stop-color="#fff" stop-opacity="0.15"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.05"/><stop offset="0.85" stop-color="#fff" stop-opacity="0.1"/><stop offset="1" stop-color="#fff" stop-opacity="0.2"/>
@@ -34,14 +34,14 @@
 <g id="adwaita" transform="matrix(1.1052212,0,0,1.1052212,-6.568354,-7.121031)">
 <rect id="base" x="12" y="32" width="104" height="84" rx="8" ry="8" fill="url(#base-edge)"/>
 <g id="face" clip-path="url(#face-clip)">
-<!-- butMail-full artwork, uniformly scaled to the face height (no distortion), centered horizontally -->
+<!-- butMail-full-glass artwork, uniformly scaled (no distortion), centered horizontally -->
 <g transform="translate(14.0000 16) scale(0.09765625)">
 
 <g transform="translate(512 512) scale(1.2) translate(-512 -512)"><g id="background" inkscape:groupmode="layer" inkscape:label="Background">
 <rect width="1024" height="1024" fill="url(#bg)"/>
 </g>
 <g id="pocket-depth" inkscape:groupmode="layer" inkscape:label="Pocket depth (behind the front)">
-<path d="M 0,542 C 300,542 340,561 512,561 C 684,561 724,542 1024,542 V 700 H 0 Z" fill="#003a78" opacity="0.42" filter="url(#pocket-depth-blur)"/>
+<path d="M 0,542 C 300,542 340,561 512,561 C 684,561 724,542 1024,542 V 700 H 0 Z" fill="#003a78" opacity="0.22" filter="url(#pocket-depth-blur)"/>
 </g></g>
 <g id="envelope-card" inkscape:groupmode="layer" inkscape:label="Envelope card" transform="translate(172 140) scale(0.664062)">
 
@@ -65,20 +65,22 @@
 
 </g>
 <g id="card-depth" inkscape:groupmode="layer" inkscape:label="Card shadow (subtle)" clip-path="url(#card-clip)">
-<path transform="translate(512 512) scale(1.2) translate(-512 -512)" d="M 0,550 C 300,550 340,569 512,569 C 684,569 724,550 1024,550 V 700 H 0 Z" fill="#003a78" opacity="0.12" filter="url(#card-depth-blur)"/>
+<path transform="translate(512 512) scale(1.2) translate(-512 -512)" d="M 0,550 C 300,550 340,569 512,569 C 684,569 724,550 1024,550 V 700 H 0 Z" fill="#003a78" opacity="0.08" filter="url(#card-depth-blur)"/>
 </g>
+<g id="card-glass" clip-path="url(#card-clip)"><rect width="1024" height="1024" fill="url(#card-glass)"/></g>
 <g transform="translate(512 512) scale(1.2) translate(-512 -512)"><g id="pocket-layer" inkscape:groupmode="layer" inkscape:label="Pocket">
-<path id="pocket" d="M 0,556 C 300,556 340,575 512,575 C 684,575 724,556 1024,556 V 1024 H 0 Z" fill="url(#pocket)"/>
+<path id="pocket" d="M 0,556 C 300,556 340,575 512,575 C 684,575 724,556 1024,556 V 1024 H 0 Z" fill="url(#pocket)" fill-opacity="0.94"/>
 <path id="pocket-light" d="M 0,556 C 300,556 340,575 512,575 C 684,575 724,556 1024,556 V 1024 H 0 Z" fill="url(#pocket-light)"/>
-<path id="pocket-lip" d="M 0,557 C 300,557 340,576 512,576 C 684,576 724,557 1024,557" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="2"/>
+<path id="pocket-lip" d="M 0,557 C 300,557 340,576 512,576 C 684,576 724,557 1024,557" fill="none" stroke="#fff" stroke-opacity="0.6" stroke-width="2"/>
 </g></g>
 <g transform="translate(-71 10) translate(512 512) scale(1.2) translate(-512 -512)"><g id="stamp" inkscape:groupmode="layer" inkscape:label="Leather stamp">
-<g opacity="0.45"><path transform="translate(0 2.5) translate(752.33 626.33) scale(5.0580)" d="m 16.936685,0.13229034 c -9.2520073,0 -16.80508273,7.55393876 -16.80439362,16.80577966 v 7.51e-4 7.5e-4 c -6.6155e-4,9.251808 7.55238632,16.805653 16.80439362,16.805653 9.250579,0 16.802123,-7.551724 16.803763,-16.801615 0,-0.0017 5.56e-4,-0.0032 5.56e-4,-0.0048 a 2.4734866,2.4734866 0 0 0 0,-7.51e-4 C 33.741749,7.6862496 26.188691,0.13229034 16.936685,0.13229034 Z m 0,4.94698136 c 6.578661,0 11.858446,5.2801333 11.857409,11.8587983 a 2.4734866,2.4734866 0 0 0 0,7.51e-4 2.4737339,2.4737339 0 0 0 0,7.5e-4 c -3.6e-5,0.131938 -0.02093,0.268978 -0.338808,0.584492 -0.318165,0.315793 -0.930893,0.698908 -1.699845,0.955225 -0.473427,0.15781 -0.830247,0.06397 -0.931755,0.0075 -0.04246,-0.0236 -0.0587,-0.0098 -0.06322,-0.0031 0.0031,-0.0093 0.01009,-0.04206 0.01009,-0.131611 V 16.938672 12.345009 A 2.4734866,2.4734866 0 0 0 23.297065,9.8715194 2.4734866,2.4734866 0 0 0 22.543485,10.18345 c -1.533043,-1.2768094 -3.473153,-2.0785784 -5.6068,-2.0785784 -4.849518,0 -8.8338783,3.9843554 -8.8338783,8.8338774 0,4.849522 3.9843603,8.833879 8.8338783,8.833879 2.585529,0 4.90156,-1.153145 6.522535,-2.945552 1.038852,0.5668 2.20849,0.759428 3.378368,0.644557 -2.115058,3.212111 -5.7439,5.326547 -9.900903,5.326547 -6.578663,0 -11.858445,-5.280133 -11.8574123,-11.858801 a 2.4737339,2.4737339 0 0 0 0,-0.0014 C 5.0782432,10.359388 10.358021,5.0792566 16.936684,5.0792566 Z m 0,7.9726603 c 2.175979,0 3.886896,1.710915 3.886896,3.886896 0,2.17598 -1.710917,3.886896 -3.886896,3.886896 -2.175981,0 -3.886897,-1.710916 -3.886897,-3.886896 0,-2.175981 1.710916,-3.886896 3.886897,-3.886896 z" fill="#ffffff"/></g>
-<g filter="url(#stamp-deboss)"><path id="stamp-at" transform="translate(752.33 626.33) scale(5.0580)" d="m 16.936685,0.13229034 c -9.2520073,0 -16.80508273,7.55393876 -16.80439362,16.80577966 v 7.51e-4 7.5e-4 c -6.6155e-4,9.251808 7.55238632,16.805653 16.80439362,16.805653 9.250579,0 16.802123,-7.551724 16.803763,-16.801615 0,-0.0017 5.56e-4,-0.0032 5.56e-4,-0.0048 a 2.4734866,2.4734866 0 0 0 0,-7.51e-4 C 33.741749,7.6862496 26.188691,0.13229034 16.936685,0.13229034 Z m 0,4.94698136 c 6.578661,0 11.858446,5.2801333 11.857409,11.8587983 a 2.4734866,2.4734866 0 0 0 0,7.51e-4 2.4737339,2.4737339 0 0 0 0,7.5e-4 c -3.6e-5,0.131938 -0.02093,0.268978 -0.338808,0.584492 -0.318165,0.315793 -0.930893,0.698908 -1.699845,0.955225 -0.473427,0.15781 -0.830247,0.06397 -0.931755,0.0075 -0.04246,-0.0236 -0.0587,-0.0098 -0.06322,-0.0031 0.0031,-0.0093 0.01009,-0.04206 0.01009,-0.131611 V 16.938672 12.345009 A 2.4734866,2.4734866 0 0 0 23.297065,9.8715194 2.4734866,2.4734866 0 0 0 22.543485,10.18345 c -1.533043,-1.2768094 -3.473153,-2.0785784 -5.6068,-2.0785784 -4.849518,0 -8.8338783,3.9843554 -8.8338783,8.8338774 0,4.849522 3.9843603,8.833879 8.8338783,8.833879 2.585529,0 4.90156,-1.153145 6.522535,-2.945552 1.038852,0.5668 2.20849,0.759428 3.378368,0.644557 -2.115058,3.212111 -5.7439,5.326547 -9.900903,5.326547 -6.578663,0 -11.858445,-5.280133 -11.8574123,-11.858801 a 2.4737339,2.4737339 0 0 0 0,-0.0014 C 5.0782432,10.359388 10.358021,5.0792566 16.936684,5.0792566 Z m 0,7.9726603 c 2.175979,0 3.886896,1.710915 3.886896,3.886896 0,2.17598 -1.710917,3.886896 -3.886896,3.886896 -2.175981,0 -3.886897,-1.710916 -3.886897,-3.886896 0,-2.175981 1.710916,-3.886896 3.886897,-3.886896 z" fill="#0581e6"/></g>
+<g opacity="0.55"><path transform="translate(0 2.5) translate(752.33 626.33) scale(5.0580)" d="m 16.936685,0.13229034 c -9.2520073,0 -16.80508273,7.55393876 -16.80439362,16.80577966 v 7.51e-4 7.5e-4 c -6.6155e-4,9.251808 7.55238632,16.805653 16.80439362,16.805653 9.250579,0 16.802123,-7.551724 16.803763,-16.801615 0,-0.0017 5.56e-4,-0.0032 5.56e-4,-0.0048 a 2.4734866,2.4734866 0 0 0 0,-7.51e-4 C 33.741749,7.6862496 26.188691,0.13229034 16.936685,0.13229034 Z m 0,4.94698136 c 6.578661,0 11.858446,5.2801333 11.857409,11.8587983 a 2.4734866,2.4734866 0 0 0 0,7.51e-4 2.4737339,2.4737339 0 0 0 0,7.5e-4 c -3.6e-5,0.131938 -0.02093,0.268978 -0.338808,0.584492 -0.318165,0.315793 -0.930893,0.698908 -1.699845,0.955225 -0.473427,0.15781 -0.830247,0.06397 -0.931755,0.0075 -0.04246,-0.0236 -0.0587,-0.0098 -0.06322,-0.0031 0.0031,-0.0093 0.01009,-0.04206 0.01009,-0.131611 V 16.938672 12.345009 A 2.4734866,2.4734866 0 0 0 23.297065,9.8715194 2.4734866,2.4734866 0 0 0 22.543485,10.18345 c -1.533043,-1.2768094 -3.473153,-2.0785784 -5.6068,-2.0785784 -4.849518,0 -8.8338783,3.9843554 -8.8338783,8.8338774 0,4.849522 3.9843603,8.833879 8.8338783,8.833879 2.585529,0 4.90156,-1.153145 6.522535,-2.945552 1.038852,0.5668 2.20849,0.759428 3.378368,0.644557 -2.115058,3.212111 -5.7439,5.326547 -9.900903,5.326547 -6.578663,0 -11.858445,-5.280133 -11.8574123,-11.858801 a 2.4737339,2.4737339 0 0 0 0,-0.0014 C 5.0782432,10.359388 10.358021,5.0792566 16.936684,5.0792566 Z m 0,7.9726603 c 2.175979,0 3.886896,1.710915 3.886896,3.886896 0,2.17598 -1.710917,3.886896 -3.886896,3.886896 -2.175981,0 -3.886897,-1.710916 -3.886897,-3.886896 0,-2.175981 1.710916,-3.886896 3.886897,-3.886896 z" fill="#ffffff"/></g>
+<g filter="url(#stamp-deboss)"><path id="stamp-at" transform="translate(752.33 626.33) scale(5.0580)" d="m 16.936685,0.13229034 c -9.2520073,0 -16.80508273,7.55393876 -16.80439362,16.80577966 v 7.51e-4 7.5e-4 c -6.6155e-4,9.251808 7.55238632,16.805653 16.80439362,16.805653 9.250579,0 16.802123,-7.551724 16.803763,-16.801615 0,-0.0017 5.56e-4,-0.0032 5.56e-4,-0.0048 a 2.4734866,2.4734866 0 0 0 0,-7.51e-4 C 33.741749,7.6862496 26.188691,0.13229034 16.936685,0.13229034 Z m 0,4.94698136 c 6.578661,0 11.858446,5.2801333 11.857409,11.8587983 a 2.4734866,2.4734866 0 0 0 0,7.51e-4 2.4737339,2.4737339 0 0 0 0,7.5e-4 c -3.6e-5,0.131938 -0.02093,0.268978 -0.338808,0.584492 -0.318165,0.315793 -0.930893,0.698908 -1.699845,0.955225 -0.473427,0.15781 -0.830247,0.06397 -0.931755,0.0075 -0.04246,-0.0236 -0.0587,-0.0098 -0.06322,-0.0031 0.0031,-0.0093 0.01009,-0.04206 0.01009,-0.131611 V 16.938672 12.345009 A 2.4734866,2.4734866 0 0 0 23.297065,9.8715194 2.4734866,2.4734866 0 0 0 22.543485,10.18345 c -1.533043,-1.2768094 -3.473153,-2.0785784 -5.6068,-2.0785784 -4.849518,0 -8.8338783,3.9843554 -8.8338783,8.8338774 0,4.849522 3.9843603,8.833879 8.8338783,8.833879 2.585529,0 4.90156,-1.153145 6.522535,-2.945552 1.038852,0.5668 2.20849,0.759428 3.378368,0.644557 -2.115058,3.212111 -5.7439,5.326547 -9.900903,5.326547 -6.578663,0 -11.858445,-5.280133 -11.8574123,-11.858801 a 2.4737339,2.4737339 0 0 0 0,-0.0014 C 5.0782432,10.359388 10.358021,5.0792566 16.936684,5.0792566 Z m 0,7.9726603 c 2.175979,0 3.886896,1.710915 3.886896,3.886896 0,2.17598 -1.710917,3.886896 -3.886896,3.886896 -2.175981,0 -3.886897,-1.710916 -3.886897,-3.886896 0,-2.175981 1.710916,-3.886896 3.886897,-3.886896 z" fill="#3b8ff0"/></g>
 </g></g>
 
+
+</g>
 </g>
 <rect id="rim-light" x="12.3" y="16.3" width="103.4" height="95.4" rx="7.7" ry="7.7" fill="none" stroke="url(#rim-light)" stroke-width="0.6"/>
-</g>
 </g>
 </svg>
