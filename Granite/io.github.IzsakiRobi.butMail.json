@@ -4,6 +4,9 @@
     "runtime-version": "49",
     "sdk": "org.gnome.Sdk",
     "command": "io.github.IzsakiRobi.butMail",
+    "build-options": {
+        "libdir": "/app/lib"
+    },
     "finish-args": [
         "--share=ipc",
         "--share=network",
