@@ -28,11 +28,11 @@
 <linearGradient id="rim-light" x1="0" y1="16" x2="0" y2="112" gradientUnits="userSpaceOnUse">
 <stop offset="0" stop-color="#fff" stop-opacity="0.6"/><stop offset="0.12" stop-color="#fff" stop-opacity="0.15"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.05"/><stop offset="0.85" stop-color="#fff" stop-opacity="0.1"/><stop offset="1" stop-color="#fff" stop-opacity="0.2"/>
 </linearGradient>
-<clipPath id="face-clip" clipPathUnits="userSpaceOnUse"><rect x="12" y="16" width="104" height="96" rx="8" ry="8"/></clipPath>
+<clipPath id="face-clip" clipPathUnits="userSpaceOnUse"><rect x="12" y="16" width="104" height="96" rx="11" ry="11"/></clipPath>
 </defs>
 <!-- Adwaita geometry (from AppIcon.svg template): face 104x96 @12,16 + 4px base, scaled 1.1052 -->
 <g id="adwaita" transform="matrix(1.1052212,0,0,1.1052212,-6.568354,-7.121031)">
-<rect id="base" x="12" y="32" width="104" height="84" rx="8" ry="8" fill="url(#base-edge)"/>
+<rect id="base" x="12" y="32" width="104" height="84" rx="11" ry="11" fill="url(#base-edge)"/>
 <g id="face" clip-path="url(#face-clip)">
 <!-- butMail-full-glass artwork, uniformly scaled (no distortion), centered horizontally -->
 <g transform="translate(14.0000 16) scale(0.09765625)">
@@ -81,6 +81,6 @@
 
 </g>
 </g>
-<rect id="rim-light" x="12.3" y="16.3" width="103.4" height="95.4" rx="7.7" ry="7.7" fill="none" stroke="url(#rim-light)" stroke-width="0.6"/>
+<rect id="rim-light" x="12.3" y="16.3" width="103.4" height="95.4" rx="10.7" ry="10.7" fill="none" stroke="url(#rim-light)" stroke-width="0.6"/>
 </g>
 </svg>
