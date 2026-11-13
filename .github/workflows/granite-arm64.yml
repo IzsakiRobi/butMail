@@ -1,7 +1,18 @@
-name: Granite ARM64
+name: Granite packages
 
 on:
   workflow_dispatch:
+    inputs:
+      arch:
+        description: Target architecture
+        type: choice
+        options: [aarch64, x86_64]
+        default: aarch64
+
+env:
+  ARCH: ${{ inputs.arch || 'aarch64' }}
+  DEB_ARCH: ${{ inputs.arch == 'x86_64' && 'amd64' || 'arm64' }}
+  ELF_MACHINE: ${{ inputs.arch == 'x86_64' && 'X86-64' || 'AArch64' }}
 
 permissions:
   contents: read
@@ -12,8 +23,8 @@ defaults:
 
 jobs:
   deb:
-    name: Granite Debian aarch64
-    runs-on: ubuntu-24.04-arm
+    name: Granite Debian ${{ inputs.arch || 'aarch64' }}
+    runs-on: ${{ inputs.arch == 'x86_64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     timeout-minutes: 30
     steps:
       - name: Check out source
@@ -23,7 +34,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          test "$(uname -m)" = aarch64
+          test "$(uname -m)" = "$ARCH"
           sudo apt-get update
           sudo apt-get install -y build-essential dpkg-dev dh-apparmor binutils
           sudo apt-get build-dep -y ./Granite
@@ -37,22 +48,22 @@ jobs:
       - name: Verify package architecture and libraries
         run: |
           version=$(dpkg-parsechangelog -l Granite/debian/changelog -S Version)
-          package="butmail_${version}_arm64.deb"
-          test "$(dpkg-deb -f "$package" Architecture)" = arm64
+          package="butmail_${version}_${DEB_ARCH}.deb"
+          test "$(dpkg-deb -f "$package" Architecture)" = "$DEB_ARCH"
           dpkg-deb -x "$package" "$RUNNER_TEMP/deb-check"
           binary="$RUNNER_TEMP/deb-check/usr/bin/io.github.IzsakiRobi.butMail"
-          readelf -h "$binary" | grep 'Machine:.*AArch64'
+          readelf -h "$binary" | grep "Machine:.*$ELF_MACHINE"
           ldd "$binary" | tee "$RUNNER_TEMP/granite-linkage.log"
           if grep -q 'not found' "$RUNNER_TEMP/granite-linkage.log"; then exit 1; fi
           mkdir dist
-          cp "$package" "dist/butMail-${version}.elementary.aarch64.deb"
+          cp "$package" "dist/butMail-${version}.elementary.${ARCH}.deb"
           cd dist
           sha256sum ./*.deb > SHA256SUMS
 
       - name: Upload Debian package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: butMail-granite-aarch64-deb
+          name: butMail-granite-${{ inputs.arch || 'aarch64' }}-deb
           path: dist/
           if-no-files-found: error
           retention-days: 14
@@ -61,7 +72,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: granite-aarch64-deb-logs
+          name: granite-${{ inputs.arch || 'aarch64' }}-deb-logs
           path: |
             ${{ runner.temp }}/granite-deb.log
             ${{ runner.temp }}/granite-linkage.log
@@ -69,8 +80,8 @@ jobs:
           retention-days: 7
 
   flatpak:
-    name: Granite Flatpak aarch64
-    runs-on: ubuntu-24.04-arm
+    name: Granite Flatpak ${{ inputs.arch || 'aarch64' }}
+    runs-on: ${{ inputs.arch == 'x86_64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     timeout-minutes: 60
     steps:
       - name: Check out source
@@ -80,7 +91,7 @@ jobs:
 
       - name: Install Flatpak build tools
         run: |
-          test "$(uname -m)" = aarch64
+          test "$(uname -m)" = "$ARCH"
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder binutils
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -91,13 +102,13 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ~/.cache/butmail-granite-flatpak
-          key: granite-aarch64-gnome49-${{ hashFiles('Granite/io.github.IzsakiRobi.butMail.json') }}-${{ github.sha }}
+          key: granite-${{ inputs.arch || 'aarch64' }}-gnome49-${{ hashFiles('Granite/io.github.IzsakiRobi.butMail.json') }}-${{ github.sha }}
           restore-keys: |
-            granite-aarch64-gnome49-${{ hashFiles('Granite/io.github.IzsakiRobi.butMail.json') }}-
+            granite-${{ inputs.arch || 'aarch64' }}-gnome49-${{ hashFiles('Granite/io.github.IzsakiRobi.butMail.json') }}-
 
       - name: Build Flatpak
         run: |
-          flatpak-builder --user --arch=aarch64 --force-clean --disable-rofiles-fuse --jobs=4 \
+          flatpak-builder --user --arch="$ARCH" --force-clean --disable-rofiles-fuse --jobs=4 \
             --state-dir="$HOME/.cache/butmail-granite-flatpak" \
             --repo="$RUNNER_TEMP/flatpak-repo" "$RUNNER_TEMP/flatpak-build" \
             Granite/io.github.IzsakiRobi.butMail.json 2>&1 | tee "$RUNNER_TEMP/granite-flatpak.log"
@@ -105,13 +116,13 @@ jobs:
       - name: Verify architecture and bundle Flatpak
         run: |
           binary="$RUNNER_TEMP/flatpak-build/files/bin/io.github.IzsakiRobi.butMail"
-          readelf -h "$binary" | grep 'Machine:.*AArch64'
-          grep '^runtime=org.gnome.Platform/aarch64/49$' "$RUNNER_TEMP/flatpak-build/metadata"
+          readelf -h "$binary" | grep "Machine:.*$ELF_MACHINE"
+          grep "^runtime=org.gnome.Platform/$ARCH/49$" "$RUNNER_TEMP/flatpak-build/metadata"
           version=$(dpkg-parsechangelog -l Granite/debian/changelog -S Version)
           mkdir dist
-          flatpak build-bundle --arch=aarch64 \
+          flatpak build-bundle --arch="$ARCH" \
             --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-            "$RUNNER_TEMP/flatpak-repo" "dist/butMail-${version}.elementary.aarch64.flatpak" \
+            "$RUNNER_TEMP/flatpak-repo" "dist/butMail-${version}.elementary.${ARCH}.flatpak" \
             io.github.IzsakiRobi.butMail stable
           cd dist
           sha256sum ./*.flatpak > SHA256SUMS
@@ -119,7 +130,7 @@ jobs:
       - name: Upload Flatpak package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: butMail-granite-aarch64-flatpak
+          name: butMail-granite-${{ inputs.arch || 'aarch64' }}-flatpak
           path: dist/
           if-no-files-found: error
           retention-days: 14
@@ -128,7 +139,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: granite-aarch64-flatpak-logs
+          name: granite-${{ inputs.arch || 'aarch64' }}-flatpak-logs
           path: ${{ runner.temp }}/granite-flatpak.log
           if-no-files-found: ignore
           retention-days: 7

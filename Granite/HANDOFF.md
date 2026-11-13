@@ -1,3 +1,7 @@
+# App icon and x86_64 CI — 2026-11-13
+
+The app icon (all six `src/icons/*/io.github.IzsakiRobi.butMail.svg`) is an elementary-style tile built from the user's `butMail-full-glass.svg` (source: `~/Projects/Icons/butMail-elementary-glass.svg`), following elementary's 128 px app-icon geometry with thin envelope edge lines. `.github/workflows/granite-arm64.yml` now takes an `arch` input (`aarch64` default, `x86_64`); x86_64 release packages are built there on `ubuntu-24.04`, since the local host is Fedora.
+
 # Unified repository update — 2026-11-01
 
 This source now lives in `Granite/` in https://github.com/IzsakiRobi/butMail on main, alongside `Libadwaita/`. Version 0.5, Debian version 0.5-1; release assets `butMail-0.5-1.elementary.x86_64.deb` and `.flatpak`. Current source is this subdirectory; build outside it. Earlier no-publication notes below are historical and superseded by the explicit publication request. All user-approved Oct31/Nov1 code and six normalized SVG icons are included. Flatpak GNOME 49/Flathub setup must be retained.
